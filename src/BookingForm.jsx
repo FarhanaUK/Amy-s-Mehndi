@@ -15,6 +15,7 @@ function BookingForm() {
     callRequested: false,
     callTimes: "",
   });
+  const [success, setSuccess] = useState(false);
 
   const packages = [
     { name: "Basic", price: 50 },
@@ -50,10 +51,60 @@ function BookingForm() {
       .filter((opt) => formData.addOns.includes(opt.name))
       .reduce((acc, item) => acc + item.price, 0);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const form = new FormData();
+    form.append("access_key", "0e74b282-1631-4ffc-be65-dddd8c96996b"); // 👉 Replace with your key
+    form.append("subject", "New Booking Request");
+    form.append("from_name", formData.name);
+    form.append("name", formData.name);
+    form.append("email", formData.email);
+    form.append("phone", formData.phone);
+    form.append("package", formData.package);
+    form.append("addons", formData.addOns.join(", "));
+    form.append("date", formData.date ? formData.date.toDateString() : "");
+    form.append("time", formData.time);
+    form.append("callRequested", formData.callRequested ? "Yes" : "No");
+    form.append("callTimes", formData.callTimes);
+    form.append("total", `£${totalPrice}`);
+
+    const response = await fetch("https://api.web3forms.com/submit", {
+      method: "POST",
+      body: form,
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      setSuccess(true);
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        package: "",
+        addOns: [],
+        date: null,
+        time: "",
+        callRequested: false,
+        callTimes: "",
+      });
+    }
+  };
+
   return (
-    <form className="max-w-md mx-auto p-6 bg-white rounded-md shadow-md space-y-5">
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-md mx-auto p-6 bg-white rounded-md shadow-md space-y-5"
+    >
       <h2 className="text-2xl font-semibold text-center mb-4">Book Your Appointment</h2>
 
+      {success && (
+        <p className="text-green-600 text-center font-medium">
+          ✅ Booking submitted successfully!
+        </p>
+      )}
+
+      {/* Input Fields */}
       <input
         type="text"
         name="name"
@@ -61,7 +112,7 @@ function BookingForm() {
         value={formData.name}
         onChange={handleChange}
         required
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-4 py-2 border rounded-md"
       />
 
       <input
@@ -71,7 +122,7 @@ function BookingForm() {
         value={formData.email}
         onChange={handleChange}
         required
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-4 py-2 border rounded-md"
       />
 
       <input
@@ -81,7 +132,7 @@ function BookingForm() {
         value={formData.phone}
         onChange={handleChange}
         required
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-4 py-2 border rounded-md"
       />
 
       <label className="block font-medium">Select a Package:</label>
@@ -90,7 +141,7 @@ function BookingForm() {
         value={formData.package}
         onChange={handleChange}
         required
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-4 py-2 border rounded-md"
       >
         <option value="">-- Select --</option>
         {packages.map((pkg) => (
@@ -123,7 +174,7 @@ function BookingForm() {
         onChange={(date) => setFormData((prev) => ({ ...prev, date }))}
         minDate={new Date()}
         required
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-4 py-2 border rounded-md"
         placeholderText="Select a date"
       />
 
@@ -133,7 +184,7 @@ function BookingForm() {
         value={formData.time}
         onChange={handleChange}
         required
-        className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="w-full px-4 py-2 border rounded-md"
       />
 
       <label className="inline-flex items-center space-x-2">
@@ -154,7 +205,7 @@ function BookingForm() {
           placeholder="When are you available for a call?"
           value={formData.callTimes}
           onChange={handleChange}
-          className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-4 py-2 border rounded-md"
         />
       )}
 
