@@ -1,5 +1,5 @@
 // src/BookingForm.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -8,14 +8,19 @@ function BookingForm() {
     name: "",
     email: "",
     phone: "",
+    address: "",      // new address line
+    city: "",         // new city line
+    postcode: "",     // new postcode line
     package: "",
     addOns: [],
     date: null,
+    slot: "", // new slot: "Morning" or "Afternoon"
     time: "",
     callRequested: false,
     callTimes: "",
   });
   const [success, setSuccess] = useState(false);
+  const [timeError, setTimeError] = useState("");
 
   const packages = [
     { name: "Basic", price: 50 },
@@ -45,6 +50,31 @@ function BookingForm() {
     }
   };
 
+  // Validate time based on slot
+  useEffect(() => {
+    if (!formData.time || !formData.slot) {
+      setTimeError("");
+      return;
+    }
+    const [hours, minutes] = formData.time.split(":").map(Number);
+
+    if (formData.slot === "Morning") {
+      // Morning slot: 10:00 - 15:59
+      if (hours < 10 || hours >= 16) {
+        setTimeError("For Morning slot, time must be between 10:00 and 15:59");
+      } else {
+        setTimeError("");
+      }
+    } else if (formData.slot === "Afternoon") {
+      // Afternoon slot: 16:00 - 21:00 (you can adjust end time)
+      if (hours < 16 || hours > 21) {
+        setTimeError("For Afternoon slot, time must be between 16:00 and 21:00");
+      } else {
+        setTimeError("");
+      }
+    }
+  }, [formData.time, formData.slot]);
+
   const totalPrice =
     (packages.find((p) => p.name === formData.package)?.price || 0) +
     addOnOptions
@@ -53,6 +83,7 @@ function BookingForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (timeError) return alert("Please fix the time selection before submitting.");
 
     const form = new FormData();
     form.append("access_key", "0e74b282-1631-4ffc-be65-dddd8c96996b"); // 👉 Replace with your key
@@ -61,9 +92,13 @@ function BookingForm() {
     form.append("name", formData.name);
     form.append("email", formData.email);
     form.append("phone", formData.phone);
+    form.append("address", formData.address);   // added address to submission
+    form.append("city", formData.city);         // added city to submission
+    form.append("postcode", formData.postcode); // added postcode to submission
     form.append("package", formData.package);
     form.append("addons", formData.addOns.join(", "));
     form.append("date", formData.date ? formData.date.toDateString() : "");
+    form.append("slot", formData.slot);
     form.append("time", formData.time);
     form.append("callRequested", formData.callRequested ? "Yes" : "No");
     form.append("callTimes", formData.callTimes);
@@ -81,9 +116,13 @@ function BookingForm() {
         name: "",
         email: "",
         phone: "",
+        address: "",   // reset address
+        city: "",      // reset city
+        postcode: "",  // reset postcode
         package: "",
         addOns: [],
         date: null,
+        slot: "",
         time: "",
         callRequested: false,
         callTimes: "",
@@ -104,36 +143,77 @@ function BookingForm() {
         </p>
       )}
 
-      {/* Input Fields */}
-      <input
-        type="text"
-        name="name"
-        placeholder="Your Name"
-        value={formData.name}
-        onChange={handleChange}
-        required
-        className="w-full px-4 py-2 border rounded-md"
-      />
+      <label htmlFor="email" className="block font-medium mb-1">Name</label>
 
       <input
-        type="email"
-        name="email"
-        placeholder="Your Email"
-        value={formData.email}
-        onChange={handleChange}
-        required
-        className="w-full px-4 py-2 border rounded-md"
-      />
+  id="name"
+  type="name"
+  name="name"
+  placeholder="Name"
+  value={formData.name}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border rounded-md"
+/>
+<label htmlFor="email" className="block font-medium mb-1">Email</label>
+<input
+  id="email"
+  type="email"
+  name="email"
+  placeholder="Your Email"
+  value={formData.email}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border rounded-md"
+/>
 
-      <input
-        type="tel"
-        name="phone"
-        placeholder="Your Phone Number"
-        value={formData.phone}
-        onChange={handleChange}
-        required
-        className="w-full px-4 py-2 border rounded-md"
-      />
+<label htmlFor="phone" className="block font-medium mb-1">Phone Number</label>
+<input
+  id="phone"
+  type="tel"
+  name="phone"
+  placeholder="Your Phone Number"
+  value={formData.phone}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border rounded-md"
+/>
+
+<label htmlFor="address" className="block font-medium mb-1">Address</label>
+<input
+  id="address"
+  type="text"
+  name="address"
+  placeholder="Address"
+  value={formData.address}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border rounded-md"
+/>
+
+<label htmlFor="city" className="block font-medium mb-1">City</label>
+<input
+  id="city"
+  type="text"
+  name="city"
+  placeholder="City"
+  value={formData.city}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border rounded-md"
+/>
+
+<label htmlFor="postcode" className="block font-medium mb-1">Postcode</label>
+<input
+  id="postcode"
+  type="text"
+  name="postcode"
+  placeholder="Postcode"
+  value={formData.postcode}
+  onChange={handleChange}
+  required
+  className="w-full px-4 py-2 border rounded-md"
+/>
 
       <label className="block font-medium">Select a Package:</label>
       <select
@@ -178,6 +258,20 @@ function BookingForm() {
         placeholderText="Select a date"
       />
 
+      <label className="block font-medium mt-4">Select Booking Slot:</label>
+      <select
+        name="slot"
+        value={formData.slot}
+        onChange={handleChange}
+        required
+        className="w-full px-4 py-2 border rounded-md"
+      >
+        <option value="">-- Select Slot --</option>
+        <option value="Morning">Morning (From 10:00 AM)</option>
+        <option value="Afternoon">Afternoon (From 4:00 PM)</option>
+      </select>
+
+      <label className="block font-medium mt-4">Select Time:</label>
       <input
         type="time"
         name="time"
@@ -186,8 +280,14 @@ function BookingForm() {
         required
         className="w-full px-4 py-2 border rounded-md"
       />
+      {timeError && <p className="text-red-600 mt-1">{timeError}</p>}
 
-      <label className="inline-flex items-center space-x-2">
+      <p className="text-sm text-gray-600 mt-1">
+        * Morning slot bookings can be scheduled between 10:00 AM and 3:59 PM. <br />
+        * Afternoon slot bookings can be scheduled between 4:00 PM and 9:00 PM.
+      </p>
+
+      <label className="inline-flex items-center space-x-2 mt-4">
         <input
           type="checkbox"
           name="callRequested"
@@ -195,29 +295,29 @@ function BookingForm() {
           onChange={handleChange}
           className="form-checkbox h-5 w-5 text-indigo-600"
         />
-        <span>Request a Call</span>
+        <span>Request a call</span>
       </label>
 
       {formData.callRequested && (
-        <input
-          type="text"
+        <textarea
           name="callTimes"
-          placeholder="When are you available for a call?"
+          placeholder="Preferred call times"
           value={formData.callTimes}
           onChange={handleChange}
-          className="w-full px-4 py-2 border rounded-md"
+          className="w-full px-4 py-2 border rounded-md mt-2"
         />
       )}
 
-      <p className="text-lg font-semibold">
-        Total Price: <span className="text-indigo-600">£{totalPrice}</span>
+      <p className="text-lg font-semibold text-center">
+        Total Price: £{totalPrice}
       </p>
 
       <button
         type="submit"
+        disabled={!!timeError}
         className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition"
       >
-        Pay & Book
+        Submit Booking
       </button>
     </form>
   );
