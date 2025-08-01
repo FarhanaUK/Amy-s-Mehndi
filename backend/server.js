@@ -24,19 +24,26 @@ app.get('/', (req, res) => {
   res.send('Server is running and connected to Google Calendar');
 });
 
+// Helper function to convert any date string to UK time ISO string
+function toUKISOString(dateStr) {
+  // Convert input date string to Date object localized to UK time zone
+  const ukTimeString = new Date(dateStr).toLocaleString('en-GB', { timeZone: 'Europe/London' });
+  // Convert localized string back to Date object
+  const ukDate = new Date(ukTimeString);
+  // Return ISO string for Google Calendar API
+  return ukDate.toISOString();
+}
+
 // POST /book-event to create calendar events
 app.post('/book-event', async (req, res) => {
   try {
     const { summary, description, startDateTime, endDateTime } = req.body;
 
-    // Ensure dateTime strings are in ISO format with timezone info (e.g. 2025-08-01T10:00:00+01:00)
-    // If your frontend sends local times without timezone, you should convert here or ensure frontend sends ISO with timezone
-
     const event = {
       summary,
       description,
-      start: { dateTime: new Date(startDateTime).toISOString() }, // convert to ISO string UTC
-      end: { dateTime: new Date(endDateTime).toISOString() },     // convert to ISO string UTC
+      start: { dateTime: toUKISOString(startDateTime) }, 
+      end: { dateTime: toUKISOString(endDateTime) },    
     };
 
     const response = await calendar.events.insert({
