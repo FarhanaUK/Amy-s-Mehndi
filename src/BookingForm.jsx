@@ -148,7 +148,7 @@ console.log("Time:", formData.time);
     const endDateTime = new Date(`${dateString}T${formData.time}:00`).toISOString();
 console.log("Start datetime:", startDateTime);
 console.log("End datetime:", endDateTime);
-    const response = await fetch("http://localhost:5000/book-event", {
+    const response = await fetch("https://us-central1-bespoke-web-engineers.cloudfunctions.net/api/book-event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
