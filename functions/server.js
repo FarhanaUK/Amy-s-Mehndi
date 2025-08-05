@@ -10,8 +10,11 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // ← Enables CORS
+app.use(cors({ origin: true }));
 
+app.get('/', (req, res) => {
+  res.send('API is working!');
+});
 
 // Load credentials from credentials.json
 const credentials = JSON.parse(fs.readFileSync('credentials.json'));

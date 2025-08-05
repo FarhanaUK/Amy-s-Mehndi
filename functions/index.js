@@ -1,4 +1,4 @@
 import * as functions from 'firebase-functions';
-import app from './server.js';  // import app with .js extension
+import app from './server.js';
 
-export const api = functions.https.onRequest(app);
+export const api = functions.https.onRequest(app);  // NO region()
