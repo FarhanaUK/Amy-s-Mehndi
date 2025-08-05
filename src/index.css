@@ -1,0 +1,24 @@
+
+
+@import url('https://fonts.googleapis.com/css2?family=Parisienne&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap');
+
+
+
+@import "tailwindcss";
+
+
+.font-parisienne {
+  font-family: 'Parisienne', cursive;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0px 1000px white inset !important; /* changes autofill background to white */
+  -webkit-text-fill-color: #000 !important; /* text color */
+  transition: background-color 5000s ease-in-out 0s;
+}
