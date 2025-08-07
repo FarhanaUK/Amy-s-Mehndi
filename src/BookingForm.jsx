@@ -6,6 +6,11 @@ import "react-datepicker/dist/react-datepicker.css";
 function BookingForm() {
   const navigate = useNavigate();
 
+
+
+
+
+  
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -42,10 +47,7 @@ function BookingForm() {
     { name: "Guest/party booking", price: 60 },
   ];
 
-  const addOnOptions = [
-    { name: "Extra Styling", price: 20 },
-   
-  ];
+  const addOnOptions = [{ name: "Extra Styling", price: 20 }];
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -81,34 +83,46 @@ function BookingForm() {
       }
     } else if (formData.slot === "Afternoon") {
       if (hours < 16 || (hours === 18 && minutes > 0) || hours > 18) {
-        setTimeError("For Afternoon slot, time must be between 16:00 and 18:00");
+        setTimeError(
+          "For Afternoon slot, time must be between 16:00 and 18:00"
+        );
       } else {
         setTimeError("");
       }
     }
   }, [formData.time, formData.slot]);
 
-  // Calculate additionalPeople total price
-  const additionalTotal = additionalPeople.reduce((acc, p) => {
-    const pkg = packages.find((x) => x.name === p.package);
-    return acc + (pkg ? pkg.price : 0);
-  }, 0);
+ // Calculate total price of additional people packages
+const additionalTotal = additionalPeople.reduce((acc, p) => {
+  const pkg = packages.find((x) => x.name === p.package);
+  return acc + (pkg ? pkg.price : 0);
+}, 0);
 
-  // Check discount and update state
-  useEffect(() => {
-    const discount = additionalPeople.some((p) => p.package) ? 10 : 0;
-    setSavedDiscount(discount > 0);
-  }, [additionalPeople]);
+// Check if discount applies based on additional people booking any package
+useEffect(() => {
+  // Discount applies if any additional person has a package selected
+  const hasDiscount = additionalPeople.some((p) => p.package);
+  setSavedDiscount(hasDiscount);
+}, [additionalPeople]);
 
-  const basePrice = packages.find((p) => p.name === formData.package)?.price || 0;
+// Get base package price from main package selection
+const basePrice =
+  packages.find((p) => p.name === formData.package)?.price || 0;
 
-  const addOnsTotal = addOnOptions
-      .filter((opt) => Array.isArray(formData.addOns) && formData.addOns.includes(opt.name))
-    .reduce((acc, item) => acc + item.price, 0);
+// Calculate total price for any selected add-ons
+const addOnsTotal = addOnOptions
+  .filter(
+    (opt) =>
+      Array.isArray(formData.addOns) && formData.addOns.includes(opt.name)
+  )
+  .reduce((acc, item) => acc + item.price, 0);
 
-  // Fix totalPrice calculation: base + additional + addons - discount if any
-  const discount = savedDiscount ? 10 : 0;
-  const totalPrice = basePrice + additionalTotal + addOnsTotal - discount;
+// Set discount amount if discount is active, else zero
+const discount = savedDiscount ? 10 : 0;
+
+// Final total price = base + additional people + add-ons - discount
+const totalPrice = basePrice + additionalTotal + addOnsTotal - discount;
+
 
   const validateForm = () => {
     if (
@@ -134,50 +148,62 @@ function BookingForm() {
     return true;
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) return;
-console.log("Submitting form...")
-  try {
-
-    console.log("Date:", formData.date);
-console.log("Time:", formData.time);
-    // Convert date and time inputs to valid ISO strings for backend
-    const dateString = formData.date.toISOString().split('T')[0]; 
-     const startDateTime = new Date(`${dateString}T${formData.time}:00`).toISOString();
-    const endDateTime = new Date(`${dateString}T${formData.time}:00`).toISOString();
-console.log("Start datetime:", startDateTime);
-console.log("End datetime:", endDateTime);
-    const response = await fetch("https://us-central1-bespoke-web-engineers.cloudfunctions.net/api/book-event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...formData,
-        startDateTime, // backend expects ISO date string
-        endDateTime,   // backend expects ISO date string
-      }),
-    });
-console.log("Fetch finished:", response)
-    if (response.ok) {
-      alert(`Booking submitted! Total price: £${totalPrice}`);
-      setFormData({ /* reset form or keep as needed */ });
-      navigate("/success");
-    } else {
-      const errorData = await response.json();
-      setFormError("Error: " + (errorData.message || "Booking failed"));
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    console.log("Submitting form...");
+    try {
+      console.log("Date:", formData.date);
+      console.log("Time:", formData.time);
+      // Convert date and time inputs to valid ISO strings for backend
+      const dateString = formData.date.toISOString().split("T")[0];
+      const startDateTime = new Date(
+        `${dateString}T${formData.time}:00`
+      ).toISOString();
+      const endDateTime = new Date(
+        `${dateString}T${formData.time}:00`
+      ).toISOString();
+      console.log("Start datetime:", startDateTime);
+      console.log("End datetime:", endDateTime);
+      const response = await fetch(
+        "https://us-central1-bespoke-web-engineers.cloudfunctions.net/api/book-event",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            startDateTime, // backend expects ISO date string
+            endDateTime, // backend expects ISO date string
+          }),
+        }
+      );
+      console.log("Fetch finished:", response);
+      if (response.ok) {
+        alert(`Booking submitted! Total price: £${totalPrice}`);
+        setFormData({
+          /* reset form or keep as needed */
+        });
+        navigate("/success");
+      } else {
+        const errorData = await response.json();
+        setFormError("Error: " + (errorData.message || "Booking failed"));
+      }
+    } catch (error) {
+      setFormError("Network error: " + error.message);
     }
-  } catch (error) {
-    setFormError("Network error: " + error.message);
-  }
-};
-
+  };
 
   return (
     <form
       onSubmit={handleSubmit}
       className="max-w-md mx-auto p-8 bg-pink-50 rounded-2xl shadow-xl space-y-6 font-cinzel text-gray-800 border border-pink-200"
     >
-      <h2 className="text-3xl font-bold text-white text-center mb-6 drop-shadow-md">Book Your Appointment</h2>
+
+
+    
+      <h2 className="text-3xl font-bold text-white text-center mb-6 drop-shadow-md">
+        Book Your Appointment
+      </h2>
 
       {/* User Details */}
       <input
@@ -261,8 +287,14 @@ console.log("Fetch finished:", response)
         max={10}
         value={additionalPeople.length}
         onChange={(e) => {
-          const count = Math.min(10, Math.max(0, parseInt(e.target.value) || 0));
-          const updated = Array.from({ length: count }, (_, i) => additionalPeople[i] || { package: "" });
+          const count = Math.min(
+            10,
+            Math.max(0, parseInt(e.target.value) || 0)
+          );
+          const updated = Array.from(
+            { length: count },
+            (_, i) => additionalPeople[i] || { package: "" }
+          );
           setAdditionalPeople(updated);
         }}
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
@@ -383,7 +415,9 @@ console.log("Fetch finished:", response)
       {/* Price Display */}
       <div className="mt-4 font-bold text-lg">
         Total Price: £{totalPrice.toFixed(2)}
-        {savedDiscount && <span className="text-green-600 ml-2">(£10 discount applied)</span>}
+        {savedDiscount && (
+          <span className="text-green-600 ml-2">(£10 discount applied)</span>
+        )}
       </div>
 
       {/* Form Error */}
