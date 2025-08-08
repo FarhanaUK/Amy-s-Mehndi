@@ -54,20 +54,20 @@ function BookingForm() {
       setTimeError("");
       return;
     }
-    const [hours, minutes] = formData.time.split(":").map(Number);
+    const [hours] = formData.time.split(":").map(Number);
     if (formData.slot === "Morning") {
-      if (hours < 9 || (hours === 11 && minutes > 0) || hours > 11) {
-        setTimeError("For Morning slot, time must be between 09:00 and 11:00");
-      } else {
-        setTimeError("");
-      }
-    } else if (formData.slot === "Afternoon") {
-      if (hours < 16 || (hours === 18 && minutes > 0) || hours > 18) {
-        setTimeError("For Afternoon slot, time must be between 16:00 and 18:00");
-      } else {
-        setTimeError("");
-      }
-    }
+  if (hours < 9 || hours >11) {
+    setTimeError("For Morning slot, time must be between 09:00 and 11:00");
+  } else {
+    setTimeError("");
+  }
+} else if (formData.slot === "Afternoon") {
+  if (hours < 16 || hours > 18) {
+    setTimeError("For Afternoon slot, time must be between 16:00 and 18:00");
+  } else {
+    setTimeError("");
+  }
+}
   }, [formData.time, formData.slot]);
   // Calculate additionalPeople total price
   const additionalTotal = additionalPeople.reduce((acc, p) => {
@@ -112,6 +112,11 @@ const totalPrice = basePrice + additionalTotal - discount;
   const totalDeposit = depositForPackage + depositForAdditionalPeople;
 
 
+
+
+
+
+  
   const validateForm = () => {
     if (
       !formData.name ||
@@ -138,44 +143,131 @@ const totalPrice = basePrice + additionalTotal - discount;
  const handleSubmit = async (e) => {
   e.preventDefault();
   if (!validateForm()) return;
-console.log("Submitting form...")
-  try {
-    console.log("Date:", formData.date);
-console.log("Time:", formData.time);
-    // Convert date and time inputs to valid ISO strings for backend
-    const dateString = formData.date.toISOString().split('T')[0]; 
-     const startDateTime = new Date(`${dateString}T${formData.time}:00`).toISOString();
-    const endDateTime = new Date(`${dateString}T${formData.time}:00`).toISOString();
-console.log("Start datetime:", startDateTime);
-console.log("End datetime:", endDateTime);
+
+  console.log("Form data to send:", formData);
+
+// Instead of messing with toISOString(), build local time manually
+const date = new Date(formData.date); // This gives you local date
+const [hours, minutes] = formData.time.split(":"); // e.g., "09:00" → ["09", "00"]
+
+date.setHours(+hours);  // set local hours
+date.setMinutes(+minutes); // set local minutes
+date.setSeconds(0);
+
+const startDateTime = date.toISOString();  
+
+
+
+
     const response = await fetch("http://localhost:5000/book-event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...formData,
         startDateTime, // backend expects ISO date string
-        endDateTime,   // backend expects ISO date string
+        
       }),
     });
-console.log("Fetch finished:", response)
-    if (response.ok) {
-      alert(`Booking submitted! Total price: £${totalPrice}`);
-      setFormData({ /* reset form or keep as needed */ });
-      navigate("/success");
+
+if (!response.ok) {
+  // Handle backend error response
+  const errorData = await response.json();
+  console.error("Server error:", errorData.message);
+  alert(`Error: ${errorData.message}`); // or use setState to show in UI
+  return;  // stop further execution
+}
+
+  alert(`Booking submitted! Total price: £${totalPrice}`);
+
+const additionalGuestsCount = formData.additionalPeople?.length || 0;
+let additionalGuestsInfo = "No additional guests";
+if (additionalGuestsCount > 0) {
+  additionalGuestsInfo = formData.additionalPeople
+    .map((guest, index) => `Guest ${index + 1}: ${guest.name} - ${guest.package}`)
+    .join("\n");
+}
+
+    let callBackInfo = "";
+if (formData.callRequested) {
+  callBackInfo = `
+Request a Call Back: YES
+Preferred Call Times: ${formData.callTimes}
+`;
+} else {
+  callBackInfo = "Request a Call Back: NO\n";
+}
+
+
+
+
+const message = `
+
+
+
+Package: ${formData.packageType}
+📦 Package: ${formData.packageType}
+👥 Additional Guests: ${additionalGuestsCount}
+${additionalGuestsInfo}
+
+💷 Total Price: £${totalPrice}
+💰 Deposit Paid: £${totalDeposit}
+
+📅 Booking Date: ${formData.date}
+⏰ Booking Time: ${formData.time}
+
+📞 Further contact: ${callBackInfo}
+
+🧍‍♀️ Customer Name: ${formData.name}
+✉️ Customer Email: ${formData.email}
+📍 Address: ${formData.address}, ${formData.city}, ${formData.postcode}
+📱 Telephone: ${formData.phone}
+
+✅ This booking has been added to your Google Calendar.
+`;
+
+// THEN in fetch body:
+fetch("https://api.web3forms.com/submit", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    access_key: "",
+    subject: "New Booking from " + formData.name,
+    from_name: formData.name,
+    from_email: formData.email,
+    to_email: "farhanaaktar@live.co.uk",
+    message: message // just the final string, no code here
+  })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if(data.success){
+      console.log("Email sent successfully");
+
+setFormData({ });
+  navigate("/success");
     } else {
-      const errorData = await response.json();
-      setFormError("Error: " + (errorData.message || "Booking failed"));
+      console.error("Email sending failed:", data);
+      alert("Something went wrong while submitting. Please try again or contact us directly.");
     }
-  } catch (error) {
-    setFormError("Network error: " + error.message);
-  }
-};
+  })
+  .catch(err => {
+    console.error("Error sending email:", err);
+    alert("Booking failed due to a connection issue. Please try again later or email us directly.");
+  });
+
+  
+}
+
+
+
 
   return (
     <form
       onSubmit={handleSubmit}
       className="max-w-md mx-auto p-8 bg-pink-50 rounded-2xl shadow-xl space-y-6 font-cinzel text-gray-800 border border-pink-200"
     >
+
+      
       <h2 className="text-3xl font-bold text-white text-center mb-6 drop-shadow-md">Book Your Appointment</h2>
       {/* User Details */}
       <input
@@ -291,7 +383,7 @@ console.log("Fetch finished:", response)
       <DatePicker
         selected={formData.date}
         onChange={(date) => setFormData((prev) => ({ ...prev, date }))}
-        dateFormat="yyyy-MM-dd"
+        dateFormat="dd-MM-yyyy"
         minDate={new Date()}
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
         required
