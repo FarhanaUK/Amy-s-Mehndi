@@ -4,6 +4,7 @@ import { google } from "googleapis";
 import fs from "fs";
 import dotenv from "dotenv";
 import Stripe from "stripe";
+import bodyParser from "body-parser"
 
 dotenv.config();
 
@@ -138,49 +139,117 @@ const paymentIntent = await stripe.paymentIntents.create({
   amount: depositAmountInPence,
   currency: 'gbp',
   metadata: {
-    customerName: name,
-    customerEmail: email,
+    name,
+   email,
     packageType,
+    phone,
+        address,
+        city,
+        postcode,
+        guests,
+        startDateTime,
+        endDateTime,
   },
 });
 
 // Send client secret back to frontend to complete payment
 res.status(200).json({
   message: 'Deposit payment initiated',
-  clientSecret: paymentIntent.client_secret,
+  clientSecret: paymentIntent.client_secret,});
 
-  
+ } catch (error) {
+    console.error(
+      "Error creating payment intent:",
+      error.response?.data || error.message || error
+    );
+    return res.status(500).send("Failed to initiate payment");
+  }
+
+    
 });
 
 
-    // Build event description only with name, email, and phone
-    const eventDescription = `Name: ${name}
+
+
+app.post(
+  "/webhook",
+  bodyParser.raw({ type: "application/json" }), // raw parser needed for Stripe signature verification
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET; // set this in your env
+
+    let event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error("Webhook signature verification failed.", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    if (event.type === "payment_intent.succeeded") {
+      const paymentIntent = event.data.object;
+
+      // Extract booking details from metadata
+      const {
+        name,
+        email,
+        packageType,
+        phone,
+        address,
+        city,
+        postcode,
+        guests,
+        startDateTime,
+      } = paymentIntent.metadata;
+
+
+      const bookingDurationMs = 3 * 60 * 60 * 1000; // 3 hours
+const startTime = new Date(startDateTime).getTime();
+const endTime = startTime + bookingDurationMs;
+const endDateTime = new Date(endTime).toISOString();
+
+      // Build event description for Google Calendar
+      const eventDescription = `Name: ${name}
 Phone: ${phone}
 Email: ${email}
 Package: ${packageType}
 Address: ${address}, ${city}, ${postcode}
 Guests: ${guests}`;
 
-    const event = {
-      summary: "Booking Event", // You can keep a fixed summary or change as needed
-      description: eventDescription,
-      start: { dateTime: req.body.startDateTime, timeZone: "Europe/London" },
-      end: { dateTime: endDateTime, timeZone: "Europe/London" },
-    };
+      const calendarEvent = {
+        summary: "Booking Event",
+        description: eventDescription,
+        start: { dateTime: startDateTime, timeZone: "Europe/London" },
+        end: { dateTime: endDateTime, timeZone: "Europe/London" },
+      };
 
-    const response = await calendar.events.insert({
-      calendarId: GOOGLE_CALENDAR_ID,
-      resource: event,
-    });
+      try {
+        await calendar.events.insert({
+          calendarId: GOOGLE_CALENDAR_ID,
+          resource: calendarEvent,
+        });
+        console.log("Google Calendar event created after payment success.");
+      } catch (calendarError) {
+        console.error("Failed to create calendar event:", calendarError);
+        // You could handle retries or notifications here
+      }
+    }
 
-    res.status(201).json({ message: "Event created!", eventId: response.data.id });
-  } catch (error) {
-    console.error("Error creating event:", error.response?.data || error.message || error);
-    return res.status(500).send("Failed to create event");
+    res.status(200).send("Received");
   }
-});
+);
 
-// DELETE /cancel-event/:eventId to delete calendar events
+
+
+
+
+
+
+
+
+
+
 app.delete("/cancel-event/:eventId", async (req, res) => {
   try {
     await calendar.events.delete({
