@@ -3,7 +3,17 @@ import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import { useNavigate } from "react-router-dom"; // for redirect
 import "react-datepicker/dist/react-datepicker.css";
+import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
+
+
 function BookingForm() {
+
+const stripe = useStripe();
+const elements = useElements();
+
+
+
+
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
@@ -140,6 +150,8 @@ const totalPrice = basePrice + additionalTotal - discount;
     setFormError("");
     return true;
   };
+
+
  const handleSubmit = async (e) => {
   e.preventDefault();
   if (!validateForm()) return;
@@ -156,7 +168,11 @@ date.setSeconds(0);
 
 const startDateTime = date.toISOString();  
 
-
+console.log("Sending booking data:", {
+  ...formData,
+  startDateTime,
+  depositAmount: totalDeposit,
+});
 
 
     const response = await fetch("http://localhost:5000/book-event", {
@@ -165,6 +181,7 @@ const startDateTime = date.toISOString();
       body: JSON.stringify({
         ...formData,
         startDateTime, // backend expects ISO date string
+         depositAmount: totalDeposit,
         
       }),
     });
@@ -177,6 +194,28 @@ if (!response.ok) {
   return;  // stop further execution
 }
 
+const data = await response.json();
+  console.log("Payment Intent Client Secret:", data.clientSecret);
+  const cardElement = elements.getElement(CardElement); // get card input
+const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
+  payment_method: {
+    card: cardElement,
+    billing_details: {
+      name: formData.name,
+      email: formData.email,
+    },
+  },
+});
+
+if (paymentResult.error) {
+  alert(`Payment failed: ${paymentResult.error.message}`);
+  return; // stop execution on payment failure
+}
+
+if (paymentResult.paymentIntent.status !== "succeeded") {
+  alert("Payment was not successful. Please try again.");
+  return;
+}
   alert(`Booking submitted! Total price: £${totalPrice}`);
 
 const additionalGuestsCount = formData.additionalPeople?.length || 0;
@@ -243,7 +282,20 @@ fetch("https://api.web3forms.com/submit", {
     if(data.success){
       console.log("Email sent successfully");
 
-setFormData({ });
+setFormData({
+  name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    postcode: "",
+    packageType: "",
+    date: "",
+    slot: "",
+    time: "",
+    callRequested: false,
+    callTimes: "",
+    guests: 0, });
   navigate("/success");
     } else {
       console.error("Email sending failed:", data);
