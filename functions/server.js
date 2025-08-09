@@ -148,6 +148,8 @@ const paymentIntent = await stripe.paymentIntents.create({
 res.status(200).json({
   message: 'Deposit payment initiated',
   clientSecret: paymentIntent.client_secret,
+
+  
 });
 
 
@@ -171,19 +173,10 @@ Guests: ${guests}`;
       resource: event,
     });
 
-    res
-      .status(201)
-      .json({ message: "Event created!", eventId: response.data.id });
+    res.status(201).json({ message: "Event created!", eventId: response.data.id });
   } catch (error) {
-    console.error(
-      "Error creating event:",
-      error.response?.data || error.message || error
-    );
-    console.error(
-      "Error creating event:",
-      error.response?.data || error.message || error
-    );
-    res.status(500).send("Failed to create event");
+    console.error("Error creating event:", error.response?.data || error.message || error);
+    return res.status(500).send("Failed to create event");
   }
 });
 

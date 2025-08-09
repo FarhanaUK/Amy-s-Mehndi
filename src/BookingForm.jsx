@@ -195,7 +195,13 @@ if (!response.ok) {
 }
 
 const data = await response.json();
+
+if (!stripe || !elements) {
+  alert("Stripe has not loaded yet. Please try again.");
+  return;
+}
   console.log("Payment Intent Client Secret:", data.clientSecret);
+
   const cardElement = elements.getElement(CardElement); // get card input
 const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
   payment_method: {
@@ -216,7 +222,7 @@ if (paymentResult.paymentIntent.status !== "succeeded") {
   alert("Payment was not successful. Please try again.");
   return;
 }
-  alert(`Booking submitted! Total price: £${totalPrice}`);
+
 
 const additionalGuestsCount = formData.additionalPeople?.length || 0;
 let additionalGuestsInfo = "No additional guests";
@@ -265,47 +271,47 @@ ${additionalGuestsInfo}
 `;
 
 // THEN in fetch body:
-fetch("https://api.web3forms.com/submit", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    access_key: "",
-    subject: "New Booking from " + formData.name,
-    from_name: formData.name,
-    from_email: formData.email,
-    to_email: "farhanaaktar@live.co.uk",
-    message: message // just the final string, no code here
-  })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if(data.success){
-      console.log("Email sent successfully");
-
-setFormData({
-  name: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    postcode: "",
-    packageType: "",
-    date: "",
-    slot: "",
-    time: "",
-    callRequested: false,
-    callTimes: "",
-    guests: 0, });
-  navigate("/success");
-    } else {
-      console.error("Email sending failed:", data);
-      alert("Something went wrong while submitting. Please try again or contact us directly.");
-    }
-  })
-  .catch(err => {
-    console.error("Error sending email:", err);
-    alert("Booking failed due to a connection issue. Please try again later or email us directly.");
+try {
+  const emailRes = await fetch("https://api.web3forms.com/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      access_key: "0e74b282-1631-4ffc-be65-dddd8c96996b",
+      subject: "New Booking from " + formData.name,
+      from_name: formData.name,
+      from_email: formData.email,
+      to_email: "farhanaaktar@live.co.uk",
+      message: message,
+    }),
   });
+
+  const emailData = await emailRes.json();
+
+  if (emailData.success) {
+    console.log("Email sent successfully");
+    setFormData({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      postcode: "",
+      packageType: "",
+      date: "",
+      slot: "",
+      time: "",
+      callRequested: false,
+      callTimes: "",
+      guests: 0,
+    });
+    navigate("/success");
+  } else {
+    alert("Something went wrong while submitting. Please try again or contact us directly.");
+  }
+} catch (error) {
+  console.error("Error sending email:", error);
+  alert("Booking failed due to a connection issue. Please try again later or email us directly.");
+}
 
   
 }
@@ -494,6 +500,11 @@ setFormData({
     )}
   </p>
 )}
+
+<div className="mb-4 border pb-4 pl-2">
+  <label className="block mb-1 text-cyan-500 font-bold">Card Details</label>
+  <CardElement options={{ hidePostalCode: true }}/>
+</div>
       {/* Price Display */}
       <div className="mt-4 font-bold text-lg">
         Total Price: £{totalPrice.toFixed(2)}
