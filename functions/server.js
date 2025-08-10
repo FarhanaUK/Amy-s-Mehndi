@@ -8,8 +8,18 @@ import Stripe from "stripe";
 dotenv.config();
 
 const app = express();
-app.use(express.json());
-app.use(cors({ origin: true }));
+
+app.use(cors({ origin: true })); // Enable CORS globally first
+
+// Custom middleware to skip JSON parsing for /webhook route
+app.use((req, res, next) => {
+  if (req.originalUrl === "/webhook") {
+    next(); // Skip express.json() for webhook
+  } else {
+    express.json()(req, res, next); // Parse JSON for all other routes
+  }
+});
+
 
 app.get("/", (req, res) => {
   res.send("Server is running and connected to Google Calendar");
@@ -212,8 +222,7 @@ Guests: ${guests || 0};
           description: eventDescription,
           start: { dateTime: startDateTime, timeZone: "Europe/London" }, // add timezone
           end: { dateTime: endDateTime, timeZone: "Europe/London" },
-          attendees: [{ email: customerEmail }], // invite customer
-          reminders: { useDefault: true }, // default reminders enabled
+     
         };
 
         // Insert event using 'resource' param (recommended)
@@ -262,7 +271,6 @@ function filterBookingSlots(events) {
       endTime: new Date(event.end.dateTime || event.end.date),
       summary: event.summary || "No title",
       location: event.location || "",
-      attendees: event.attendees?.map((a) => a.email) || [],
       description: event.description || "",
       htmlLink: event.htmlLink || "",
       creator: event.creator?.email || "",
