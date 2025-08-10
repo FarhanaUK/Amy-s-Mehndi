@@ -4,7 +4,6 @@ import { google } from "googleapis";
 import fs from "fs";
 import dotenv from "dotenv";
 import Stripe from "stripe";
-import bodyParser from "body-parser"
 
 dotenv.config();
 
@@ -38,7 +37,7 @@ function isSlotAvailable(events, requestedStart, requestedEnd) {
     ).getTime();
     const eventEnd = new Date(event.end.dateTime || event.end.date).getTime();
 
-    // Check if times overlap
+    
     return reqStart < eventEnd && reqEnd > eventStart;
   });
 }
@@ -55,6 +54,8 @@ async function fetchEventsInRange(startDateTime, endDateTime) {
 }
 
 app.post("/book-event", async (req, res) => {
+ console.log("🔥 /book-event endpoint hit");
+  console.log("Request headers:", req.headers);
   console.log("Request body:", req.body);
   try {
     const {
@@ -67,7 +68,7 @@ app.post("/book-event", async (req, res) => {
       postcode,
       guests,
       startDateTime,
-       depositAmount,
+      depositAmount,
     } = req.body;
 
     if (
@@ -80,12 +81,10 @@ app.post("/book-event", async (req, res) => {
       !city ||
       !postcode
     ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Missing required fields: name, email, phone, address, city, postcode, packageType, startDateTime",
-        });
+      return res.status(400).json({
+        message:
+          "Missing required fields: name, email, phone, address, city, postcode, packageType, startDateTime",
+      });
     }
 
     // Check required address fields
@@ -108,9 +107,14 @@ app.post("/book-event", async (req, res) => {
     }
 
     const startTime = new Date(startDateTime).getTime();
-    const bookingDurationMs = 3 * 60 * 60 * 1000;
 
+  
+
+    const bookingDurationMs = 3 * 60 * 60 * 1000;
     const endTime = startTime + bookingDurationMs;
+    if (isNaN(startTime) || isNaN(endTime)) {
+      return res.status(400).json({ message: "Invalid start or end date" });
+    }
     const endDateTime = new Date(endTime).toISOString();
 
     const existingEvents = await fetchEventsInRange(startDateTime, endDateTime);
@@ -120,80 +124,70 @@ app.post("/book-event", async (req, res) => {
       endDateTime
     );
 
-    if (isNaN(startTime) || isNaN(endTime)) {
-      return res.status(400).json({ message: "Invalid start or end date" });
-    }
-
     if (!available) {
-      return res
-        .status(409)
-        .json({
-          message:
-            "Sorry, this slot is already booked. Please choose another time.",
-        });
+      return res.status(409).json({
+        message:
+          "Sorry, this slot is already booked. Please choose another time.",
+      });
     }
 
-const depositAmountInPence = depositAmount * 100; // convert £ to pence
-
-const paymentIntent = await stripe.paymentIntents.create({
-  amount: depositAmountInPence,
-  currency: 'gbp',
-  metadata: {
-    name,
-   email,
-    packageType,
-    phone,
+    const depositAmountInPence = depositAmount * 100; // convert £ to pence
+console.log("Creating payment intent now")
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: depositAmountInPence,
+      currency: "gbp",
+      metadata: {
+        customerName: name,
+        customerEmail: email,
+        packageType,
+        phone,
         address,
         city,
         postcode,
-        guests,
+        guests: guests || 0,
         startDateTime,
         endDateTime,
-  },
-});
-
-// Send client secret back to frontend to complete payment
-res.status(200).json({
-  message: 'Deposit payment initiated',
-  clientSecret: paymentIntent.client_secret,});
-
- } catch (error) {
-    console.error(
-      "Error creating payment intent:",
-      error.response?.data || error.message || error
-    );
-    return res.status(500).send("Failed to initiate payment");
+      },
+    });
+ console.log("Payment intent created:", paymentIntent.id); 
+     // Return client_secret for frontend to confirm payment
+    return res.status(200).json({
+      message: "Payment initiated",
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    });
+  } catch (error) {
+    console.error("Error booking event:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-
-    
 });
-
-
-
 
 app.post(
   "/webhook",
-  bodyParser.raw({ type: "application/json" }), // raw parser needed for Stripe signature verification
+  express.raw({ type: "application/json" }),
   async (req, res) => {
     const sig = req.headers["stripe-signature"];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET; // set this in your env
-
     let event;
-
+console.log("Webhook received"); // log webhook receipt
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
     } catch (err) {
-      console.error("Webhook signature verification failed.", err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+      console.log(`Webhook signature verification failed:`, err);
+      return res.sendStatus(400);
     }
-
+console.log('Webhook received'); 
     if (event.type === "payment_intent.succeeded") {
+       console.log("Payment succeeded event received");
       const paymentIntent = event.data.object;
 
-      // Extract booking details from metadata
+      // Extract metadata from payment intent
       const {
-        name,
-        email,
+        customerName,
+        customerEmail,
         packageType,
         phone,
         address,
@@ -201,55 +195,48 @@ app.post(
         postcode,
         guests,
         startDateTime,
+        endDateTime,
       } = paymentIntent.metadata;
 
-
-      const bookingDurationMs = 3 * 60 * 60 * 1000; // 3 hours
-const startTime = new Date(startDateTime).getTime();
-const endTime = startTime + bookingDurationMs;
-const endDateTime = new Date(endTime).toISOString();
-
-      // Build event description for Google Calendar
-      const eventDescription = `Name: ${name}
-Phone: ${phone}
-Email: ${email}
-Package: ${packageType}
-Address: ${address}, ${city}, ${postcode}
-Guests: ${guests}`;
-
-      const calendarEvent = {
-        summary: "Booking Event",
-        description: eventDescription,
-        start: { dateTime: startDateTime, timeZone: "Europe/London" },
-        end: { dateTime: endDateTime, timeZone: "Europe/London" },
-      };
-
       try {
-        await calendar.events.insert({
+        // Prepare detailed event description
+        const eventDescription = `
+Email: ${customerEmail}
+Phone: ${phone}
+Address: ${address}, ${city}, ${postcode}
+Guests: ${guests || 0};
+        `;
+
+        const calendarEvent = {
+          summary: `Booking: ${packageType} for ${customerName}`, // dynamic summary
+          description: eventDescription,
+          start: { dateTime: startDateTime, timeZone: "Europe/London" }, // add timezone
+          end: { dateTime: endDateTime, timeZone: "Europe/London" },
+          attendees: [{ email: customerEmail }], // invite customer
+          reminders: { useDefault: true }, // default reminders enabled
+        };
+
+        // Insert event using 'resource' param (recommended)
+        console.log("Creating Google Calendar event now");
+        const eventResponse = await calendar.events.insert({
           calendarId: GOOGLE_CALENDAR_ID,
           resource: calendarEvent,
         });
-        console.log("Google Calendar event created after payment success.");
+
+        console.log(
+          `Google Calendar event created: ${eventResponse.data.htmlLink}`
+        );
       } catch (calendarError) {
-        console.error("Failed to create calendar event:", calendarError);
-        // You could handle retries or notifications here
+        console.error("Error creating calendar event:", calendarError);
       }
     }
 
-    res.status(200).send("Received");
+    res.json({ received: true });
   }
 );
 
 
-
-
-
-
-
-
-
-
-
+// DELETE /cancel-event/:eventId to delete calendar events
 app.delete("/cancel-event/:eventId", async (req, res) => {
   try {
     await calendar.events.delete({
@@ -330,8 +317,7 @@ app.get("/events", async (req, res) => {
 });
 
 const PORT = process.env.MY_PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-});
+app.listen(PORT, () => {console.log(`✅ Server running at http://localhost:${PORT}`); 
+  });
 
 export default app;
