@@ -4,31 +4,17 @@ import { google } from "googleapis";
 import fs from "fs";
 import dotenv from "dotenv";
 import Stripe from "stripe";
+import bodyParser from 'body-parser';
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: true })); // Enable CORS globally first
+app.use(cors({ origin: true }));
 
-// Custom middleware to skip JSON parsing for /webhook route
-app.use((req, res, next) => {
-  if (req.originalUrl === "/webhook") {
-    next(); // Skip express.json() for webhook
-  } else {
-    express.json()(req, res, next); // Parse JSON for all other routes
-  }
-});
-
-
-app.get("/", (req, res) => {
-  res.send("Server is running and connected to Google Calendar");
-});
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 const credentials = JSON.parse(fs.readFileSync("credentials.json"));
-
 const auth = new google.auth.GoogleAuth({
   credentials,
   scopes: ["https://www.googleapis.com/auth/calendar"],
@@ -36,6 +22,81 @@ const auth = new google.auth.GoogleAuth({
 
 const calendar = google.calendar({ version: "v3", auth });
 const GOOGLE_CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID;
+
+app.post(
+  "/webhook",
+  bodyParser.raw({ type: "application/json" }), // raw buffer needed for Stripe signature check
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+    const rawBody = req.body; // This is a Buffer, NOT parsed JSON
+    let event;
+console.log("Webhook received"); // log webhook receipt
+    try {
+      event = stripe.webhooks.constructEvent(
+        rawBody,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+    } catch (err) {
+      console.log(`Webhook signature verification failed:`, err);
+      return res.sendStatus(400);
+    }
+console.log('Webhook received'); 
+    if (event.type === "payment_intent.succeeded") {
+       console.log("Payment succeeded event received");
+      const paymentIntent = event.data.object;
+
+      // Extract metadata from payment intent
+      const {
+        customerName,
+        customerEmail,
+        packageType,
+        phone,
+        address,
+        city,
+        postcode,
+        guests,
+        startDateTime,
+        endDateTime,
+      } = paymentIntent.metadata;
+
+      try {
+        // Prepare detailed event description
+        const eventDescription = `
+Email: ${customerEmail}
+Phone: ${phone}
+Address: ${address}, ${city}, ${postcode}
+Guests: ${guests || 0};
+        `;
+
+        const calendarEvent = {
+          summary: `Booking: ${packageType} for ${customerName}`, // dynamic summary
+          description: eventDescription,
+          start: { dateTime: startDateTime, timeZone: "Europe/London" }, // add timezone
+          end: { dateTime: endDateTime, timeZone: "Europe/London" },
+     
+        };
+
+        // Insert event using 'resource' param (recommended)
+        console.log("Creating Google Calendar event now");
+        const eventResponse = await calendar.events.insert({
+          calendarId: GOOGLE_CALENDAR_ID,
+          resource: calendarEvent,
+        });
+
+        console.log(
+          `Google Calendar event created: ${eventResponse.data.htmlLink}`
+        );
+      } catch (calendarError) {
+        console.error("Error creating calendar event:", calendarError);
+      }
+    }
+
+    res.json({ received: true });
+  }
+);
+
+
 
 function isSlotAvailable(events, requestedStart, requestedEnd) {
   const reqStart = new Date(requestedStart).getTime();
@@ -62,7 +123,7 @@ async function fetchEventsInRange(startDateTime, endDateTime) {
   });
   return response.data.items || [];
 }
-
+app.use(express.json());
 app.post("/book-event", async (req, res) => {
  console.log("🔥 /book-event endpoint hit");
   console.log("Request headers:", req.headers);
@@ -172,80 +233,14 @@ console.log("Creating payment intent now")
   }
 });
 
-app.post(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  async (req, res) => {
-    const sig = req.headers["stripe-signature"];
-    let event;
-console.log("Webhook received"); // log webhook receipt
-    try {
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (err) {
-      console.log(`Webhook signature verification failed:`, err);
-      return res.sendStatus(400);
-    }
-console.log('Webhook received'); 
-    if (event.type === "payment_intent.succeeded") {
-       console.log("Payment succeeded event received");
-      const paymentIntent = event.data.object;
-
-      // Extract metadata from payment intent
-      const {
-        customerName,
-        customerEmail,
-        packageType,
-        phone,
-        address,
-        city,
-        postcode,
-        guests,
-        startDateTime,
-        endDateTime,
-      } = paymentIntent.metadata;
-
-      try {
-        // Prepare detailed event description
-        const eventDescription = `
-Email: ${customerEmail}
-Phone: ${phone}
-Address: ${address}, ${city}, ${postcode}
-Guests: ${guests || 0};
-        `;
-
-        const calendarEvent = {
-          summary: `Booking: ${packageType} for ${customerName}`, // dynamic summary
-          description: eventDescription,
-          start: { dateTime: startDateTime, timeZone: "Europe/London" }, // add timezone
-          end: { dateTime: endDateTime, timeZone: "Europe/London" },
-     
-        };
-
-        // Insert event using 'resource' param (recommended)
-        console.log("Creating Google Calendar event now");
-        const eventResponse = await calendar.events.insert({
-          calendarId: GOOGLE_CALENDAR_ID,
-          resource: calendarEvent,
-        });
-
-        console.log(
-          `Google Calendar event created: ${eventResponse.data.htmlLink}`
-        );
-      } catch (calendarError) {
-        console.error("Error creating calendar event:", calendarError);
-      }
-    }
-
-    res.json({ received: true });
-  }
-);
 
 
-// DELETE /cancel-event/:eventId to delete calendar events
+app.get("/", (req, res) => {
+  res.send("Server is running and connected to Google Calendar");
+});
+
+
+
 app.delete("/cancel-event/:eventId", async (req, res) => {
   try {
     await calendar.events.delete({
