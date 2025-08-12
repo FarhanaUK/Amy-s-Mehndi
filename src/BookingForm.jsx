@@ -64,15 +64,20 @@ const elements = useElements();
       setTimeError("");
       return;
     }
-    const [hours] = formData.time.split(":").map(Number);
+    const [hours, minutes] = formData.time.split(":").map(Number);
     if (formData.slot === "Morning") {
-  if (hours < 9 || hours >11) {
+  if (hours < 9 ||
+      (hours === 11 && minutes > 0) ||
+      hours > 11) {
     setTimeError("For Morning slot, time must be between 09:00 and 11:00");
   } else {
     setTimeError("");
   }
 } else if (formData.slot === "Afternoon") {
-  if (hours < 16 || hours > 18) {
+  if (hours < 16 ||
+      (hours === 18 && minutes > 0) ||
+      hours > 18
+) {
     setTimeError("For Afternoon slot, time must be between 16:00 and 18:00");
   } else {
     setTimeError("");
@@ -158,12 +163,12 @@ const totalPrice = basePrice + additionalTotal - discount;
 
   console.log("Form data to send:", formData);
 
-// Instead of messing with toISOString(), build local time manually
-const date = new Date(formData.date); // This gives you local date
-const [hours, minutes] = formData.time.split(":"); // e.g., "09:00" → ["09", "00"]
+ 
+const date = new Date(formData.date); 
+const [hours, minutes] = formData.time.split(":"); 
 
-date.setHours(+hours);  // set local hours
-date.setMinutes(+minutes); // set local minutes
+date.setHours(+hours);  
+date.setMinutes(+minutes); 
 date.setSeconds(0);
 
 const startDateTime = date.toISOString();  
@@ -248,29 +253,29 @@ Preferred Call Times: ${formData.callTimes}
 const message = `
 
 
+Customer Name: ${formData.name}
+Customer Email: ${formData.email}
+Address: ${formData.address}, ${formData.city}, ${formData.postcode}
+Telephone: ${formData.phone}
+
+Further contact: ${callBackInfo}
 
 Package: ${formData.packageType}
-📦 Package: ${formData.packageType}
-👥 Additional Guests: ${additionalGuestsCount}
+Package: ${formData.packageType}
+Additional Guests: ${additionalGuestsCount}
 ${additionalGuestsInfo}
 
-💷 Total Price: £${totalPrice}
-💰 Deposit Paid: £${totalDeposit}
+-Total Price: £${totalPrice}
+-Deposit Paid: £${totalDeposit}
 
-📅 Booking Date: ${formData.date}
-⏰ Booking Time: ${formData.time}
+Booking Date: ${formData.date}
+Booking Time: ${formData.time}
 
-📞 Further contact: ${callBackInfo}
-
-🧍‍♀️ Customer Name: ${formData.name}
-✉️ Customer Email: ${formData.email}
-📍 Address: ${formData.address}, ${formData.city}, ${formData.postcode}
-📱 Telephone: ${formData.phone}
 
 ✅ This booking has been added to your Google Calendar.
 `;
 
-// THEN in fetch body:
+
 try {
   const emailRes = await fetch("https://api.web3forms.com/submit", {
     method: "POST",
@@ -320,6 +325,7 @@ try {
 
 
   return (
+    <div className="px-4">
     <form
       onSubmit={handleSubmit}
       className="max-w-md mx-auto p-8 bg-pink-50 rounded-2xl shadow-xl space-y-6 font-cinzel text-gray-800 border border-pink-200"
@@ -519,6 +525,7 @@ try {
         Book Now
       </button>
     </form>
+    </div>
   );
 }
 export default BookingForm;

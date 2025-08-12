@@ -165,11 +165,14 @@ app.post("/book-event", async (req, res) => {
         .json({ message: "Address, city, and postcode are required" });
     }
 
+    const start = new Date(startDateTime)
     const startHour = new Date(startDateTime).getHours();
+    const minutes = start.getMinutes();
     if (
       !(
-        (startHour >= 9 && startHour <= 11) ||
-        (startHour >= 16 && startHour <= 18)
+        (startHour >= 9 && (startHour < 11 || (startHour === 11 && minutes === 0))) ||
+    (startHour >= 16 && (startHour < 18 || (startHour === 18 && minutes === 0)))
+
       )
     ) {
       return res
