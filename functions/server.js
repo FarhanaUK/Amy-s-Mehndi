@@ -294,19 +294,71 @@ app.post("/book-event", async (req, res) => {
         .status(400)
         .json({ message: "Address, city, and postcode are required" });
     }
-    const start = new Date(startDateTime)
-    const startHour = new Date(startDateTime).getHours();
-    const minutes = start.getMinutes();
-    if (
-      !(
-        (startHour >= 9 && (startHour < 11 || (startHour === 11 && minutes === 0))) ||
-    (startHour >= 16 && (startHour < 18 || (startHour === 18 && minutes === 0)))
-      )
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Bookings only allowed between 9-11am and 4-6pm" });
-    }
+    
+
+
+
+
+const start = new Date(startDateTime);
+const startHour = new Date(startDateTime).getHours();
+const minutes = start.getMinutes();
+// ADD THESE DEBUG LOGS
+console.log("=== TIME DEBUG ===");
+console.log("📅 Received startDateTime:", startDateTime);
+console.log("🕐 Parsed as UTC date:", start);
+console.log("⏰ UTC Hour:", startHour, "Minutes:", minutes);
+// Get London time properly
+const londonHour = parseInt(new Date(startDateTime).toLocaleString("en-US", {
+  timeZone: "Europe/London",
+  hour: 'numeric',
+  hour12: false
+}));
+const londonMinutes = parseInt(new Date(startDateTime).toLocaleString("en-US", {
+  timeZone: "Europe/London",
+  minute: 'numeric'
+}));
+const londonTime = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/London',
+  hour: 'numeric',
+  minute: 'numeric',
+  hour12: false
+}).format(new Date(startDateTime));
+console.log("🇬🇧 London hour:", londonHour);
+console.log("🇬🇧 London minutes:", londonMinutes);
+console.log("🇬🇧 London time formatted:", londonTime);
+// Also check what your frontend is actually sending
+console.log("📱 Raw formData.date:", req.body.date);
+console.log("📱 Raw formData.time:", req.body.time);
+console.log("=== END DEBUG ===");
+// IMPORTANT: Use London time for validation, not UTC
+if (
+  !(
+    (londonHour >= 9 && (londonHour < 11 || (londonHour === 11 && londonMinutes === 0))) ||
+    (londonHour >= 16 && (londonHour < 18 || (londonHour === 18 && londonMinutes === 0)))
+  )
+) {
+  console.log("❌ Time validation FAILED");
+  console.log(`Attempted booking at London time: ${londonHour}:${londonMinutes}`);
+  return res
+    .status(400)
+    .json({ message: "Bookings only allowed between 9-11am and 4-6pm" });
+}
+console.log("✅ Time validation PASSED");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const startTime = new Date(startDateTime).getTime();
   
     const bookingDurationMs = 3 * 60 * 60 * 1000;
