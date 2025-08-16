@@ -34,6 +34,7 @@ const elements = useElements();
   const [formError, setFormError] = useState("");
   const [additionalPeople, setAdditionalPeople] = useState([]);
   const [savedDiscount, setSavedDiscount] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const packages = [
     { name: "Classic", price: 175 },
     { name: "Classic hands only", price: 125 },
@@ -159,8 +160,10 @@ const totalPrice = basePrice + additionalTotal - discount;
 
  const handleSubmit = async (e) => {
   e.preventDefault();
-  if (!validateForm()) return;
-
+  if (!validateForm() || isSubmitting) return; // Prevent double submission
+  
+  setIsSubmitting(true); 
+try{
   console.log("Form data to send:", formData);
 
  
@@ -276,7 +279,7 @@ Booking Time: ${formData.time}
 `;
 
 
-try {
+
   const emailRes = await fetch("https://api.web3forms.com/submit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -292,37 +295,37 @@ try {
 
   const emailData = await emailRes.json();
 
-  if (emailData.success) {
-    console.log("Email sent successfully");
-    setFormData({
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      city: "",
-      postcode: "",
-      packageType: "",
-      date: "",
-      slot: "",
-      time: "",
-      callRequested: false,
-      callTimes: "",
-      guests: 0,
-    });
-    navigate("/success");
-  } else {
-    alert("Something went wrong while submitting. Please try again or contact us directly.");
+
+
+    if (emailData.success) {
+      console.log("Email sent successfully");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        city: "",
+        postcode: "",
+        packageType: "",
+        date: "",
+        slot: "",
+        time: "",
+        callRequested: false,
+        callTimes: "",
+        guests: 0,
+      });
+      navigate("/success");
+    } else {
+      alert("Something went wrong while submitting. Please try again or contact us directly.");
+    }
+
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Something went wrong. Please try again.");
+  } finally {
+    setIsSubmitting(false); // Re-enable button - this will ALWAYS run
   }
-} catch (error) {
-  console.error("Error sending email:", error);
-  alert("Booking failed due to a connection issue. Please try again later or email us directly.");
-}
-
-  
-}
-
-
-
+};
 
   return (
     <div className="px-4">
@@ -519,10 +522,14 @@ try {
       {/* Form Error */}
       {formError && <p className="text-red-600">{formError}</p>}
       <button
-        type="submit"
-        className="w-full text-white py-3 rounded-md bg-yellow-400 hover:bg-yellow-500"
-      >
-        Book Now
+        disabled={isSubmitting}
+  className={`w-full text-white py-3 rounded-md ${
+    isSubmitting 
+      ? 'bg-gray-400 cursor-not-allowed' 
+      : 'bg-yellow-400 hover:bg-yellow-500'
+  }`}
+>
+  {isSubmitting ? 'Processing...' : 'Book Now'}
       </button>
     </form>
     </div>
