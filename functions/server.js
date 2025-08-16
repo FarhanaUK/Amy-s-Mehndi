@@ -4,13 +4,16 @@ import cors from "cors"; // ← Proper import style
 import { google } from "googleapis";
 import fs from "fs";
 import Stripe from "stripe";
-import bodyParser from 'body-parser';
 import dotenv from "dotenv";
+
+// Add this import at the top of your server.js file
+import { Buffer } from 'buffer';
 dotenv.config();
 
 
 const app = express();
 const allowedOrigins = [
+  'http://localhost:5173',
   'http://localhost:5174',
   'https://amys-mehndi-booking.web.app'
 ];
@@ -50,25 +53,67 @@ function initServices() {
   console.log("✅ yay");
 }
 app.post(
-  "/webhook",
-  bodyParser.raw({ type: "application/json" }), // raw buffer needed for Stripe signature check
-  async (req, res) => {
+  "/webhook", async (req, res) => {
+    console.log("🎯 WEBHOOK HIT!");
+  console.log("🎯 Headers:", req.headers);
+  console.log("🎯 Body type:", typeof req.body);
+  console.log("🎯 Body keys:", Object.keys(req.body || {}));
+
+
     await initServices()
     const sig = req.headers["stripe-signature"];
-    const rawBody = req.body; // This is a Buffer, NOT parsed JSON
+    let rawBody;
+    
+    // FIREBASE WORKAROUND: Check if body was already parsed
+   try {
+    // In Firebase Functions, the raw body is available as req.rawBody
+    if (req.rawBody) {
+      rawBody = req.rawBody;
+      console.log("✅ Using req.rawBody (Firebase native)");
+    } 
+    // If rawBody not available, try to reconstruct from parsed body
+    else if (typeof req.body === 'object') {
+      rawBody = JSON.stringify(req.body);
+      console.log("🔧 Reconstructed from parsed object");
+    }
+    // Last resort - if body is already a string
+    else if (typeof req.body === 'string') {
+      rawBody = req.body;
+      console.log("✅ Using string body");
+    } else {
+      throw new Error("Cannot determine raw body format");
+    }
+
+    console.log("Raw body type:", typeof rawBody);
+    console.log("Raw body length:", rawBody.length);
+    
+  } catch (bodyError) {
+    console.error("❌ Error preparing raw body:", bodyError);
+    return res.status(400).send("Invalid body format");
+  }
+    
     let event;
-console.log("Webhook received"); // log webhook receipt
+    console.log("Webhook received - attempting signature verification...");
+    
     try {
       event = stripe.webhooks.constructEvent(
         rawBody,
         sig,
         process.env.STRIPE_WEBHOOK_SECRET
       );
+      
+      console.log("✅ Webhook signature verified successfully!");
+      console.log("✅ Event type:", event.type);
+      
     } catch (err) {
-      console.log(`Webhook signature verification failed:`, err);
-      return res.sendStatus(400);
+      console.log(`❌ Webhook signature verification failed:`, err.message);
+      console.log("❌ Raw body type used:", typeof rawBody);
+      console.log("❌ Raw body length:", rawBody ? rawBody.length : 'undefined');
+      console.log("❌ Signature:", sig);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
     }
-console.log('Webhook received'); 
+
+ 
     if (event.type === "payment_intent.succeeded") {
        console.log("Payment succeeded event received");
       const paymentIntent = event.data.object;
@@ -185,60 +230,19 @@ app.post("/book-event", async (req, res) => {
         .status(400)
         .json({ message: "Address, city, and postcode are required" });
     }
-   
-
-
-const start = new Date(startDateTime);
-const startHour = new Date(startDateTime).getHours();
-const minutes = start.getMinutes();
-// ADD THESE DEBUG LOGS
-console.log("=== TIME DEBUG ===");
-console.log("📅 Received startDateTime:", startDateTime);
-console.log("🕐 Parsed as UTC date:", start);
-console.log("⏰ UTC Hour:", startHour, "Minutes:", minutes);
-// Try London timezone conversion
-const londonDate = new Date(startDateTime).toLocaleString("en-US", {
-  timeZone: "Europe/London"
-});
-const londonHour = new Date(londonDate).getHours();
-console.log("🇬🇧 London date string:", londonDate);
-console.log("🇬🇧 London hour:", londonHour);
-// Also check what your frontend is actually sending
-console.log("📱 Raw formData.date:", req.body.date);
-console.log("📱 Raw formData.time:", req.body.time);
-console.log("=== END DEBUG ===");
-// Your current validation (keep it for now)
-if (
-  !(
-    (startHour >= 9 && (startHour < 11 || (startHour === 11 && minutes === 0))) ||
+    const start = new Date(startDateTime)
+    const startHour = new Date(startDateTime).getHours();
+    const minutes = start.getMinutes();
+    if (
+      !(
+        (startHour >= 9 && (startHour < 11 || (startHour === 11 && minutes === 0))) ||
     (startHour >= 16 && (startHour < 18 || (startHour === 18 && minutes === 0)))
-  )
-) {
-  console.log("❌ Time validation FAILED");
-  return res
-    .status(400)
-    .json({ message: "Bookings only allowed between 9-11am and 4-6pm" });
-}
-console.log("✅ Time validation PASSED");
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      )
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Bookings only allowed between 9-11am and 4-6pm" });
+    }
     const startTime = new Date(startDateTime).getTime();
   
     const bookingDurationMs = 3 * 60 * 60 * 1000;
@@ -366,6 +370,22 @@ app.get("/events", async (req, res) => {
     );
     res.status(500).send("Failed to fetch events");
   }
+
+  
+});
+
+app.get("/webhook", (req, res) => {
+  res.json({ 
+    message: "Webhook endpoint is alive", 
+    timestamp: new Date().toISOString() 
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString() 
+  });
 });
 
 
