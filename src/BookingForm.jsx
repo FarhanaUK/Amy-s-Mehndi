@@ -1,22 +1,25 @@
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import { useNavigate } from "react-router-dom"; // for redirect
 import "react-datepicker/dist/react-datepicker.css";
-import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js";
+import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js"
+import emailjs from '@emailjs/browser'
 
 
 function BookingForm() {
 
 const stripe = useStripe();
 const elements = useElements();
+const navigate = useNavigate();
+  
+const EMAILJS_SERVICE_ID = 'service_7ed8v2a'; // Replace with your Service ID
+const EMAILJS_TEMPLATE_ID = 'template_m8o042e'; // Replace with your Template ID  
+const EMAILJS_PUBLIC_KEY = '130oCqD8htmBVYM0t'; 
 
 
-
-
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: "",
+const [formData, setFormData] = useState({
+    name: "", 
     email: "",
     phone: "",
     address: "",
@@ -35,6 +38,7 @@ const elements = useElements();
   const [additionalPeople, setAdditionalPeople] = useState([]);
   const [savedDiscount, setSavedDiscount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const packages = [
     { name: "Classic", price: 175 },
     { name: "Classic hands only", price: 125 },
@@ -60,6 +64,7 @@ const elements = useElements();
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
+
   useEffect(() => {
     if (!formData.time || !formData.slot) {
       setTimeError("");
@@ -106,13 +111,10 @@ const elements = useElements();
   "Showstopper",
   "Showstopper hands only",
 ];
-  // Check if selected package is bridal and additionalPeople array has any package selected
-  const isBridalPackage = bridalPackages.includes(formData.packageType);
-  const hasAdditionalPeople = additionalPeople.length > 0 && additionalPeople.some(p => p.package);
-
-  // Apply discount only if both conditions true
-  const discount = isBridalPackage && hasAdditionalPeople ? 10 : 0;
-
+  
+const isBridalPackage = bridalPackages.includes(formData.packageType);
+const hasAdditionalPeople = additionalPeople.length > 0 && additionalPeople.some(p => p.package);
+const discount = isBridalPackage && hasAdditionalPeople ? 10 : 0;
   setSavedDiscount(discount > 0);
 }, [formData.packageType, additionalPeople]);
 
@@ -122,18 +124,12 @@ const totalPrice = basePrice + additionalTotal - discount;
 
 
 
- const isPackageSelected = formData.packageType !== "";
-  const depositForPackage = isPackageSelected ? 50 : 0;
-  const depositForAdditionalPeople = additionalPeople.length * 20;
-  const totalDeposit = depositForPackage + depositForAdditionalPeople;
+const isPackageSelected = formData.packageType !== "";
+const depositForPackage = isPackageSelected ? 50 : 0;
+const depositForAdditionalPeople = additionalPeople.length * 20;
+const totalDeposit = depositForPackage + depositForAdditionalPeople;
 
-
-
-
-
-
-  
-  const validateForm = () => {
+const validateForm = () => {
     if (
       !formData.name ||
       !formData.email ||
@@ -158,22 +154,21 @@ const totalPrice = basePrice + additionalTotal - discount;
   };
 
 
- const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
   e.preventDefault();
-  if (!validateForm() || isSubmitting) return; // Prevent double submission
+  if (!validateForm() || isSubmitting) return
   
-  setIsSubmitting(true); 
+  setIsSubmitting(true)
+
 try{
-  console.log("Form data to send:", formData);
+  console.log("Form data to send:", formData)
 
  
 const date = new Date(formData.date); 
-const [hours, minutes] = formData.time.split(":"); 
-
+const [hours, minutes] = formData.time.split(":");
 date.setHours(+hours);  
 date.setMinutes(+minutes); 
 date.setSeconds(0);
-
 const startDateTime = date.toISOString();  
 
 console.log("Sending booking data:", {
@@ -182,35 +177,33 @@ console.log("Sending booking data:", {
   depositAmount: totalDeposit,
 });
 
-
-    const response = await fetch("https://us-central1-bespoke-web-engineers.cloudfunctions.net/api/book-event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...formData,
-        startDateTime, // backend expects ISO date string
-         depositAmount: totalDeposit,
-        
-      }),
-    });
+const response = await fetch("https://us-central1-bespoke-web-engineers.cloudfunctions.net/api/book-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          startDateTime,
+          depositAmount: totalDeposit,
+        }),
+      });
 
 if (!response.ok) {
-  // Handle backend error response
   const errorData = await response.json();
   console.error("Server error:", errorData.message);
-  alert(`Error: ${errorData.message}`); // or use setState to show in UI
-  return;  // stop further execution
+  alert(`Error: ${errorData.message}`)
+  return
 }
 
 const data = await response.json();
 
 if (!stripe || !elements) {
-  alert("Stripe has not loaded yet. Please try again.");
+  alert("Stripe has not loaded yet. Please try again.")
   return;
 }
-  console.log("Payment Intent Client Secret:", data.clientSecret);
 
-  const cardElement = elements.getElement(CardElement); // get card input
+console.log("Payment Intent Client Secret:", data.clientSecret);
+
+const cardElement = elements.getElement(CardElement)
 const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
   payment_method: {
     card: cardElement,
@@ -223,7 +216,7 @@ const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
 
 if (paymentResult.error) {
   alert(`Payment failed: ${paymentResult.error.message}`);
-  return; // stop execution on payment failure
+  return
 }
 
 if (paymentResult.paymentIntent.status !== "succeeded") {
@@ -231,8 +224,9 @@ if (paymentResult.paymentIntent.status !== "succeeded") {
   return;
 }
 
+console.log("Sending email via EmailJS...");
 
-const additionalGuestsCount = formData.additionalPeople?.length || 0;
+const additionalGuestsCount = additionalPeople?.length || 0;
 let additionalGuestsInfo = "No additional guests";
 if (additionalGuestsCount > 0) {
   additionalGuestsInfo = formData.additionalPeople
@@ -240,7 +234,7 @@ if (additionalGuestsCount > 0) {
     .join("\n");
 }
 
-    let callBackInfo = "";
+let callBackInfo = "";
 if (formData.callRequested) {
   callBackInfo = `
 Request a Call Back: YES
@@ -248,57 +242,38 @@ Preferred Call Times: ${formData.callTimes}
 `;
 } else {
   callBackInfo = "Request a Call Back: NO\n";
+  console.log(additionalGuestsInfo, callBackInfo)
 }
 
+const templateParams = {
+        customer_name: formData.name,
+        customer_email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        postcode: formData.postcode,
+        package_type: formData.packageType,
+        additional_people_count: additionalGuestsCount,
+        additional_people_info: additionalGuestsInfo,
+        call_back_info: callBackInfo,
+        total_price: totalPrice.toFixed(2),
+        total_deposit: totalDeposit,
+        booking_date: formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '',
+        booking_time: formData.time,
+      };
 
 
+ const emailResult = await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID, 
+        templateParams,
+        EMAILJS_PUBLIC_KEY
+      );
 
-const message = `
+      console.log("Email sent successfully:", emailResult);
 
-
-Customer Name: ${formData.name}
-Customer Email: ${formData.email}
-Address: ${formData.address}, ${formData.city}, ${formData.postcode}
-Telephone: ${formData.phone}
-
-Further contact: ${callBackInfo}
-
-Package: ${formData.packageType}
-Package: ${formData.packageType}
-Additional Guests: ${additionalGuestsCount}
-${additionalGuestsInfo}
-
--Total Price: £${totalPrice}
--Deposit Paid: £${totalDeposit}
-
-Booking Date: ${formData.date}
-Booking Time: ${formData.time}
-
-
-✅ This booking has been added to your Google Calendar.
-`;
-
-
-
-  const emailRes = await fetch("https://api.web3forms.com/submit", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      access_key: "0e74b282-1631-4ffc-be65-dddd8c96996b",
-      subject: "New Booking from " + formData.name,
-      from_name: formData.name,
-      from_email: formData.email,
-      to_email: "farhanaaktar@live.co.uk",
-      message: message,
-    }),
-  });
-
-  const emailData = await emailRes.json();
-
-
-
-    if (emailData.success) {
-      console.log("Email sent successfully");
+   
+     
       setFormData({
         name: "",
         email: "",
@@ -313,19 +288,25 @@ Booking Time: ${formData.time}
         callRequested: false,
         callTimes: "",
         guests: 0,
-      });
+        setSavedDiscount: false
+     });
+      setAdditionalPeople([]); // 🔥 ADD THIS: Also reset additional people
       navigate("/success");
-    } else {
-      alert("Something went wrong while submitting. Please try again or contact us directly.");
-    }
 
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Something went wrong. Please try again.");
-  } finally {
-    setIsSubmitting(false); // Re-enable button - this will ALWAYS run
-  }
-};
+    } catch (error) {
+      console.error("Error:", error);
+      
+      // 🔥 ADD BETTER ERROR HANDLING
+      if (error.name === 'EmailJSResponseError') {
+        alert("Email sending failed. Your booking is confirmed but we couldn't send the confirmation email. Please contact us directly.");
+      } else {
+        alert("Something went wrong. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
 
   return (
     <div className="px-4">
