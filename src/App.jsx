@@ -1,7 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import BookingForm from "./BookingForm";
 import Success from "./Success";
-import Footer from './Footer'
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import { useLocation } from "react-router-dom";
@@ -27,7 +26,7 @@ function App() {
         <Route path="/success" element={<Success />} />
       </Routes>
     
-    <Footer/>
+ 
     </div>
     </Elements>
   );

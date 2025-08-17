@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom"; // for redirect
 import "react-datepicker/dist/react-datepicker.css";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js"
 import emailjs from '@emailjs/browser'
+import Footer from "./Footer";
 
 
 function BookingForm() {
@@ -513,7 +514,9 @@ const templateParams = {
   {isSubmitting ? 'Processing...' : 'Book Now'}
       </button>
     </form>
-    </div>
+
+    <Footer />
+  </div>
   );
 }
 export default BookingForm;

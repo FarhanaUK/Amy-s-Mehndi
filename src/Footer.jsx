@@ -4,9 +4,9 @@ function Footer () {
 
 return (
     <div>
-<footer className="text-center text-gray-500 text-sm py-6 bg-yellow-50 mt-10 ">
-  Developed by <span className="font-semibold">Bespoke Web Engineers</span>
-</footer>
+ <footer className="text-center text-gray-500 text-sm py-6 mt-10">
+      &copy; {new Date().getFullYear()} <span className="font-semibold">Bespoke Web Engineers</span>. All rights reserved.
+    </footer>
 
     </div>
 )
