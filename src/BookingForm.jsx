@@ -229,9 +229,9 @@ console.log("Sending email via EmailJS...");
 
 const additionalGuestsCount = additionalPeople?.length || 0;
 let additionalGuestsInfo = "No additional guests";
-if (additionalGuestsCount > 0) {
-  additionalGuestsInfo = formData.additionalPeople
-    .map((guest, index) => `Guest ${index + 1}: ${guest.name} - ${guest.package}`)
+if (additionalGuestsCount && additionalPeople.length > 0) {
+  additionalGuestsInfo = additionalPeople
+.map((guest, index) => `Person ${index + 1} Package: ${guest.package}`)
     .join("\n");
 }
 
@@ -261,6 +261,7 @@ const templateParams = {
         total_deposit: totalDeposit,
         booking_date: formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '',
         booking_time: formData.time,
+        payment_id: paymentResult.paymentIntent.id,
       };
 
 
@@ -273,6 +274,15 @@ const templateParams = {
 
       console.log("Email sent successfully:", emailResult);
 
+
+  const customerEmailResult = await emailjs.send(
+  EMAILJS_SERVICE_ID,
+  'template_8qwjw5n',
+  templateParams,
+  EMAILJS_PUBLIC_KEY
+);
+
+console.log("Customer thank you email sent successfully:", customerEmailResult);
    
      
       setFormData({
