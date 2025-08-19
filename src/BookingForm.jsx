@@ -13,10 +13,10 @@ function BookingForm() {
 const stripe = useStripe();
 const elements = useElements();
 const navigate = useNavigate();
-  
-const EMAILJS_SERVICE_ID = 'service_7ed8v2a'; // Replace with your Service ID
-const EMAILJS_TEMPLATE_ID = 'template_m8o042e'; // Replace with your Template ID  
-const EMAILJS_PUBLIC_KEY = '130oCqD8htmBVYM0t'; 
+
+const EMAILJS_SERVICE_ID = 'service_7ed8v2a';
+const EMAILJS_TEMPLATE_ID = 'template_m8o042e';
+const EMAILJS_PUBLIC_KEY = '130oCqD8htmBVYM0t'; // Replace with your Public Key
 
 
 const [formData, setFormData] = useState({
@@ -39,6 +39,7 @@ const [formData, setFormData] = useState({
   const [additionalPeople, setAdditionalPeople] = useState([]);
   const [savedDiscount, setSavedDiscount] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
   const packages = [
     { name: "Classic", price: 175 },
@@ -146,10 +147,44 @@ const validateForm = () => {
       setFormError("Please fill in all required fields.");
       return false;
     }
+
+    if (formData.name.trim().length < 2 || formData.name.trim().length > 50) {
+      setFormError("Name must be between 2 and 50 characters.");
+      return false;
+    }
+
+    if (!/^[a-zA-Z\s\-']+$/.test(formData.name.trim())) {
+      setFormError("Name can only contain letters, spaces, hyphens, and apostrophes.");
+      return false;
+    }
+
     if (timeError) {
       setFormError(timeError);
       return false;
     }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setFormError("Please enter a valid email address.");
+      return false;
+    }
+
+
+if (!/^\+?\d{7,15}$/.test(formData.phone.trim())) {
+  setFormError("Please enter a valid phone number.");
+  return false;
+}
+
+if (!/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i.test(formData.postcode.trim())) {
+      setFormError("Please enter a valid UK postcode.");
+      return false;
+    }
+
+
+if (additionalPeople.some(p => !p.package)) {
+  setFormError("Please select a package for each additional person.");
+  return false;
+}
+
     setFormError("");
     return true;
   };
@@ -160,6 +195,7 @@ const handleSubmit = async (e) => {
   if (!validateForm() || isSubmitting) return
   
   setIsSubmitting(true)
+  setPaymentError("")
 
 try{
   console.log("Form data to send:", formData)
@@ -191,14 +227,14 @@ const response = await fetch("https://us-central1-bespoke-web-engineers.cloudfun
 if (!response.ok) {
   const errorData = await response.json();
   console.error("Server error:", errorData.message);
-  alert(`Error: ${errorData.message}`)
+  setPaymentError(`Booking error: ${errorData.message}`)
   return
 }
 
 const data = await response.json();
 
 if (!stripe || !elements) {
-  alert("Stripe has not loaded yet. Please try again.")
+  setPaymentError("Payment system is loading. Please try again in a moment.")
   return;
 }
 
@@ -216,12 +252,12 @@ const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
 });
 
 if (paymentResult.error) {
-  alert(`Payment failed: ${paymentResult.error.message}`);
+  setPaymentError(`Payment failed: ${paymentResult.error.message}`)
   return
 }
 
 if (paymentResult.paymentIntent.status !== "succeeded") {
-  alert("Payment was not successful. Please try again.");
+  setPaymentError("Payment was not successful. Please try again.");
   return;
 }
 
@@ -309,9 +345,9 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
       
       // 🔥 ADD BETTER ERROR HANDLING
       if (error.name === 'EmailJSResponseError') {
-        alert("Email sending failed. Your booking is confirmed but we couldn't send the confirmation email. Please contact us directly.");
+        setPaymentError("Email sending failed. Your booking is confirmed but we couldn't send the confirmation email. Please contact us directly.");
       } else {
-        alert("Something went wrong. Please try again.");
+        setPaymentError("Something went wrong. Please try again.")
       }
     } finally {
       setIsSubmitting(false);
@@ -323,6 +359,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
     <div className="px-4">
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="max-w-md mx-auto p-8 bg-pink-50 rounded-2xl shadow-xl space-y-6 font-cinzel text-gray-800 border border-pink-200"
     >
 
@@ -335,25 +372,22 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         placeholder="Name"
         value={formData.name}
         onChange={handleChange}
-        required
         className="font-cinzel w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 "
       />
       <input
-        type="email"
+        type="text"
         name="email"
         placeholder="Your Email"
         value={formData.email}
         onChange={handleChange}
-        required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
       <input
-        type="tel"
+        type="text"
         name="phone"
         placeholder="Your Phone Number"
         value={formData.phone}
         onChange={handleChange}
-        required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
       <input
@@ -362,7 +396,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         placeholder="Address"
         value={formData.address}
         onChange={handleChange}
-        required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
       <input
@@ -371,7 +404,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         placeholder="City"
         value={formData.city}
         onChange={handleChange}
-        required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
       <input
@@ -380,7 +412,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         placeholder="Postcode"
         value={formData.postcode}
         onChange={handleChange}
-        required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
       {/* Package Selector */}
@@ -389,7 +420,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         name="packageType"
         value={formData.packageType}
         onChange={handleChange}
-        required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       >
         <option value="">-- Select Bridal Package --</option>
@@ -513,6 +543,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
       </div>
       {/* Form Error */}
       {formError && <p className="text-red-600">{formError}</p>}
+      {paymentError && <p className="text-red-600 font-semibold">{paymentError}</p>}
       <button
         disabled={isSubmitting}
   className={`w-full text-white py-3 rounded-md ${
