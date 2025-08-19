@@ -59,11 +59,14 @@ const [formData, setFormData] = useState({
     const { name, value, type, checked } = e.target;
     if (type === "checkbox" && name === "callRequested") {
       setFormData((prev) => ({ ...prev, callRequested: checked }));
+       setFormError("");
     } else if (name === "guests") {
       const guestsCount = Math.max(0, parseInt(value) || 0);
       setFormData((prev) => ({ ...prev, guests: guestsCount }));
+       setFormError("");
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
+       setFormError("");
     }
   };
 
@@ -436,7 +439,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         type="number"
         min={0}
         max={10}
-        value={additionalPeople.length}
+        value={additionalPeople.length.toString()}
         onChange={(e) => {
           const count = Math.min(10, Math.max(0, parseInt(e.target.value) || 0));
           const updated = Array.from({ length: count }, (_, i) => additionalPeople[i] || { package: "" });
