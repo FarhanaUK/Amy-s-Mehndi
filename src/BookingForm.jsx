@@ -121,6 +121,7 @@ const isBridalPackage = bridalPackages.includes(formData.packageType);
 const hasAdditionalPeople = additionalPeople.length > 0 && additionalPeople.some(p => p.package);
 const discount = isBridalPackage && hasAdditionalPeople ? 10 : 0;
   setSavedDiscount(discount > 0);
+  setFormData(prev => ({ ...prev, guests: additionalPeople.length }))
 }, [formData.packageType, additionalPeople]);
 
 const basePrice = packages.find(p => p.name === formData.packageType)?.price || 0;
@@ -192,6 +193,8 @@ if (additionalPeople.some(p => !p.package)) {
     return true;
   };
 
+
+  
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -338,8 +341,9 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         callRequested: false,
         callTimes: "",
         guests: 0,
-        setSavedDiscount: false
+        SavedDiscount: false
      });
+     setSavedDiscount(false)
       setAdditionalPeople([]); // 🔥 ADD THIS: Also reset additional people
       navigate("/success");
 

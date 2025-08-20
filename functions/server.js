@@ -130,41 +130,11 @@ if (event.type === "payment_intent.succeeded") {
     guests,
     startDateTime,
     endDateTime,
-    pendingEventId, // 🔥 NEW: Get the pending event ID
   } = paymentIntent.metadata;
 
-  try {
-    if (pendingEventId) {
-      // 🔥 UPDATE THE EXISTING PENDING EVENT TO CONFIRMED
-      console.log(`Converting pending event ${pendingEventId} to confirmed...`);
-      
-      const confirmedEvent = {
-        summary: `✅ CONFIRMED: ${packageType} for ${customerName}`,
-        description: `📋 BOOKING CONFIRMED & PAID
-        
-Customer: ${customerName}
-Email: ${customerEmail}
-Phone: ${phone}
-Address: ${address}, ${city}, ${postcode}
-Guests: ${guests || 0}
-Package: ${packageType}
-
-Payment ID: ${paymentIntent.id}
-Booking confirmed at: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`,
-        colorId: "10", // Green color for confirmed bookings
-      };
-
-      await calendar.events.update({
-        calendarId: GOOGLE_CALENDAR_ID,
-        eventId: pendingEventId,
-        resource: confirmedEvent,
-      });
-
-      console.log(`✅ Booking confirmed and updated: ${pendingEventId}`);
-      
-    } else {
-      // 🔥 FALLBACK: Create new event if no pendingEventId (for backwards compatibility)
-      console.log("No pendingEventId found, creating new event...");
+   try {
+      // Create confirmed booking event
+      console.log("Creating confirmed booking event...");
       
       const eventDescription = `📋 BOOKING CONFIRMED & PAID
         
@@ -175,7 +145,8 @@ Address: ${address}, ${city}, ${postcode}
 Guests: ${guests || 0}
 Package: ${packageType}
 
-Payment ID: ${paymentIntent.id}`;
+Payment ID: ${paymentIntent.id}
+Booking confirmed at: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`;
 
       const calendarEvent = {
         summary: `✅ CONFIRMED: ${packageType} for ${customerName}`,
@@ -190,41 +161,16 @@ Payment ID: ${paymentIntent.id}`;
         resource: calendarEvent,
       });
 
-      console.log(`Google Calendar event created: ${eventResponse.data.htmlLink}`);
-    }
-    
-  } catch (calendarError) {
-    console.error("Error handling calendar event:", calendarError);
-  }
-}
-
-// 🔥 ADD THIS: Handle payment failures to clean up pending events
-if (event.type === "payment_intent.payment_failed") {
-  console.log("Payment failed event received");
-  const paymentIntent = event.data.object;
-  const { pendingEventId } = paymentIntent.metadata;
-
-  if (pendingEventId) {
-    try {
-      console.log(`Deleting pending event ${pendingEventId} due to payment failure...`);
-      
-      await calendar.events.delete({
-        calendarId: GOOGLE_CALENDAR_ID,
-        eventId: pendingEventId,
-      });
-      
-      console.log(`✅ Pending event deleted: ${pendingEventId}`);
+      console.log(`✅ Google Calendar event created: ${eventResponse.data.htmlLink}`);
       
     } catch (calendarError) {
-      console.error("Error deleting pending event:", calendarError);
+      console.error("❌ Error creating calendar event:", calendarError);
     }
   }
-}
 
-// 🔥 IMPORTANT: Keep this at the end of your webhook function
-res.json({ received: true });
-  }
-);
+  // Important: Always respond to webhook
+  res.json({ received: true });
+});
 
 function isSlotAvailable(events, requestedStart, requestedEnd) {
   const reqStart = new Date(requestedStart).getTime();
@@ -380,39 +326,7 @@ console.log("✅ Time validation PASSED");
       });
     }
     
-    console.log("Step 3: Creating PENDING calendar event to reserve slot...");
-    let pendingEventId = null;
-    
-    try {
-      const pendingEvent = {
-        summary: `PENDING: ${packageType} for ${name}`,
-        description: `⏳ PAYMENT PENDING - DO NOT CONFIRM
-Email: ${email}
-Phone: ${phone}
-Address: ${address}, ${city}, ${postcode}
-Guests: ${guests || 0}
-Package: ${packageType}
 
-This slot is reserved while payment is being processed.`,
-        start: { dateTime: startDateTime, timeZone: "Europe/London" },
-        end: { dateTime: endDateTime, timeZone: "Europe/London" },
-        colorId: "8", // Gray color for pending bookings
-      };
-
-      const pendingCalendarEvent = await calendar.events.insert({
-        calendarId: GOOGLE_CALENDAR_ID,
-        resource: pendingEvent,
-      });
-
-      pendingEventId = pendingCalendarEvent.data.id;
-      console.log(`✅ Pending event created: ${pendingEventId}`);
-      
-    } catch (calendarError) {
-      console.error("❌ Failed to create pending calendar event:", calendarError);
-      return res.status(500).json({ 
-        message: "Failed to reserve slot. Please try again." 
-      });
-    }
 
 
     const depositAmountInPence = depositAmount * 100; // convert £ to pence
