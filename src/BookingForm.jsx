@@ -14,9 +14,10 @@ const stripe = useStripe();
 const elements = useElements();
 const navigate = useNavigate();
 
-const EMAILJS_SERVICE_ID = 'service_7ed8v2a';
-const EMAILJS_TEMPLATE_ID = 'template_m8o042e';
-const EMAILJS_PUBLIC_KEY = '130oCqD8htmBVYM0t'; // Replace with your Public Key
+const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID
+const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_OWNER
+const EMAILJS_PUBLIC_KEY =  import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+const EMAILJS_EMAILJS_TEMPLATE_ID_CUSTOMER = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_CUSTOMER
 
 
 const [formData, setFormData] = useState({
@@ -220,7 +221,7 @@ console.log("Sending booking data:", {
   depositAmount: totalDeposit,
 });
 
-const response = await fetch("https://us-central1-bespoke-web-engineers.cloudfunctions.net/api/book-event", {
+const response = await fetch(`${import.meta.env.VITE_API_URL}/book-event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -319,7 +320,7 @@ const templateParams = {
 
   const customerEmailResult = await emailjs.send(
   EMAILJS_SERVICE_ID,
-  'template_8qwjw5n',
+  EMAILJS_EMAILJS_TEMPLATE_ID_CUSTOMER,
   templateParams,
   EMAILJS_PUBLIC_KEY
 );

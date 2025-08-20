@@ -136,6 +136,7 @@ if (event.type === "payment_intent.succeeded") {
       // Create confirmed booking event
       console.log("Creating confirmed booking event...");
       
+      
       const eventDescription = `📋 BOOKING CONFIRMED & PAID
         
 Customer: ${customerName}
