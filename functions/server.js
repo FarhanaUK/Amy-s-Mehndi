@@ -1,4 +1,6 @@
 
+
+
 import express from "express"
 import cors from "cors"
 import { google } from "googleapis"
@@ -6,6 +8,7 @@ import fs from "fs"
 import Stripe from "stripe"
 import dotenv from "dotenv"
 import rateLimit from 'express-rate-limit'
+
 
 dotenv.config()
 
@@ -55,18 +58,13 @@ function initServices() {
     })
     calendar = google.calendar({ version: "v3", auth })
   }
-  console.log("✅ Stripe and Google Calendar initialized")
-  console.log("✅ yay")
+
+ console.log("Services initialized successfully")
 }
 app.post(
   "/webhook", async (req, res) => {
-    console.log("🎯 WEBHOOK HIT!")
-  console.log("🎯 Headers:", req.headers)
-  console.log("🎯 Body type:", typeof req.body)
-  console.log("🎯 Body keys:", Object.keys(req.body || {}))
-
-
-    await initServices()
+ 
+    initServices()
     const sig = req.headers["stripe-signature"]
     let rawBody
     
@@ -75,32 +73,24 @@ app.post(
   
     if (req.rawBody) {
       rawBody = req.rawBody
-      console.log("✅ Using req.rawBody (Firebase native)")
     } 
    
     else if (typeof req.body === 'object') {
       rawBody = JSON.stringify(req.body)
-      console.log("🔧 Reconstructed from parsed object")
     }
   
     else if (typeof req.body === 'string') {
       rawBody = req.body
-      console.log("✅ Using string body")
     } else {
       throw new Error("Cannot determine raw body format")
     }
 
-    console.log("Raw body type:", typeof rawBody)
-    console.log("Raw body length:", rawBody.length)
-    
   } catch (bodyError) {
     console.error("❌ Error preparing raw body:", bodyError)
     return res.status(400).send("Invalid body format")
   }
     
     let event
-    console.log("Webhook received - attempting signature verification...")
-    
     try {
       event = stripe.webhooks.constructEvent(
         rawBody,
@@ -108,8 +98,6 @@ app.post(
         process.env.STRIPE_WEBHOOK_SECRET
       )
       
-      console.log("✅ Webhook signature verified successfully!")
-      console.log("✅ Event type:", event.type)
       
     } catch (err) {
       console.log(`❌ Webhook signature verification failed:`, err.message)
@@ -121,7 +109,6 @@ app.post(
 
  
 if (event.type === "payment_intent.succeeded") {
-  console.log("Payment succeeded event received")
   const paymentIntent = event.data.object
   
 
@@ -139,9 +126,6 @@ if (event.type === "payment_intent.succeeded") {
   } = paymentIntent.metadata
 
    try {
-      
-      console.log("Creating confirmed booking event...")
-      
       const eventDescription = `📋 BOOKING CONFIRMED & PAID
         
 Customer: ${customerName}
@@ -203,16 +187,9 @@ async function fetchEventsInRange(startDateTime, endDateTime) {
 app.use(express.json())
 app.use('/book-event', bookingLimiter)
 app.post("/book-event", async (req, res) => {
- console.log("🔥 /book-event endpoint hit")
-  console.log("Request headers:", req.headers)
-  console.log("Request body:", req.body)
-  console.log("🔥 /book-event endpoint hit")
-  console.log("Request body:", JSON.stringify(req.body, null, 2))
+
   try {
-     console.log("Step 1: Initializing services...")
-    await initServices()
-     console.log("✅ Services initialized")
-     console.log("Step 2: Extracting data...")
+    initServices()
     const {
       name,
       email,
@@ -225,7 +202,7 @@ app.post("/book-event", async (req, res) => {
       startDateTime,
       depositAmount,
     } = req.body
-       console.log("✅ Data extracted")
+  
     if (
       !name ||
       !email ||
@@ -241,21 +218,9 @@ app.post("/book-event", async (req, res) => {
           "Missing required fields: name, email, phone, address, city, postcode, packageType, startDateTime",
       })
     }
-    if (!address || !city || !postcode) {
-      return res
-        .status(400)
-        .json({ message: "Address, city, and postcode are required" })
-    }
+   
     
 
-
-const start = new Date(startDateTime)
-const startHour = new Date(startDateTime).getHours()
-const minutes = start.getMinutes()
-console.log("=== TIME DEBUG ===")
-console.log("📅 Received startDateTime:", startDateTime)
-console.log("🕐 Parsed as UTC date:", start)
-console.log("⏰ UTC Hour:", startHour, "Minutes:", minutes)
 const londonHour = parseInt(new Date(startDateTime).toLocaleString("en-US", {
   timeZone: "Europe/London",
   hour: 'numeric',
@@ -265,18 +230,8 @@ const londonMinutes = parseInt(new Date(startDateTime).toLocaleString("en-US", {
   timeZone: "Europe/London",
   minute: 'numeric'
 }))
-const londonTime = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/London',
-  hour: 'numeric',
-  minute: 'numeric',
-  hour12: false
-}).format(new Date(startDateTime))
-console.log("🇬🇧 London hour:", londonHour)
-console.log("🇬🇧 London minutes:", londonMinutes)
-console.log("🇬🇧 London time formatted:", londonTime)
-console.log("📱 Raw formData.date:", req.body.date)
-console.log("📱 Raw formData.time:", req.body.time)
-console.log("=== END DEBUG ===")
+
+
 
 if (
   !(
@@ -284,14 +239,11 @@ if (
     (londonHour >= 16 && (londonHour < 18 || (londonHour === 18 && londonMinutes === 0)))
   )
 ) {
-  console.log("❌ Time validation FAILED")
-  console.log(`Attempted booking at London time: ${londonHour}:${londonMinutes}`)
+ 
   return res
     .status(400)
     .json({ message: "Bookings only allowed between 9-11am and 4-6pm" })
 }
-console.log("✅ Time validation PASSED")
-
 
     const startTime = new Date(startDateTime).getTime()
   
@@ -318,7 +270,6 @@ console.log("✅ Time validation PASSED")
 
 
     const depositAmountInPence = depositAmount * 100
-console.log("Creating payment intent now")
     const paymentIntent = await stripe.paymentIntents.create({
       amount: depositAmountInPence,
       currency: "gbp",
@@ -335,7 +286,7 @@ console.log("Creating payment intent now")
         endDateTime,
       },
     })
- console.log("Payment intent created:", paymentIntent.id)
+
  return res.status(200).json({
       message: "Payment initiated",
       clientSecret: paymentIntent.client_secret,
