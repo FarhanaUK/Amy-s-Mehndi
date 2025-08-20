@@ -1,9 +1,9 @@
-import Footer from "./Footer";
+import Footer from "./Footer"
 
 function Success() {
   return (
     <div className="bg-rose-50 min-h-screen flex flex-col justify-between">
-      {/* Centered card */}
+
       <div className="flex-grow flex items-center justify-center">
         <div className="max-w-md w-full p-6 text-center bg-white rounded shadow">
           <h1 className="text-3xl font-bold mb-4 text-green-700">✅ Booking Complete!</h1>
@@ -13,7 +13,7 @@ function Success() {
         </div>
       </div>
 
-      {/* Footer at the bottom */}
+    
       <Footer />
     </div>
   );

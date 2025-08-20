@@ -1,7 +1,7 @@
 
-import { useState, useEffect } from "react";
-import DatePicker from "react-datepicker";
-import { useNavigate } from "react-router-dom"; // for redirect
+import { useState, useEffect } from "react"
+import DatePicker from "react-datepicker"
+import { useNavigate } from "react-router-dom"
 import "react-datepicker/dist/react-datepicker.css";
 import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js"
 import emailjs from '@emailjs/browser'
@@ -34,13 +34,14 @@ const [formData, setFormData] = useState({
     callRequested: false,
     callTimes: "",
     guests: 0,
-  });
-  const [timeError, setTimeError] = useState("");
-  const [formError, setFormError] = useState("");
-  const [additionalPeople, setAdditionalPeople] = useState([]);
-  const [savedDiscount, setSavedDiscount] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentError, setPaymentError] = useState("");
+  })
+
+  const [timeError, setTimeError] = useState("")
+  const [formError, setFormError] = useState("")
+  const [additionalPeople, setAdditionalPeople] = useState([])
+  const [savedDiscount, setSavedDiscount] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [paymentError, setPaymentError] = useState("")
 
   const packages = [
     { name: "Classic", price: 175 },
@@ -54,53 +55,53 @@ const [formData, setFormData] = useState({
     { name: "Showstopper", price: 350 },
     { name: "Showstopper hands only", price: 300 },
     { name: "Guest/party booking", price: 60 },
-  ];
+  ]
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (type === "checkbox" && name === "callRequested") {
-      setFormData((prev) => ({ ...prev, callRequested: checked }));
-       setFormError("");
+      setFormData((prev) => ({ ...prev, callRequested: checked }))
+       setFormError("")
     } else if (name === "guests") {
-      const guestsCount = Math.max(0, parseInt(value) || 0);
-      setFormData((prev) => ({ ...prev, guests: guestsCount }));
-       setFormError("");
+      const guestsCount = Math.max(0, parseInt(value) || 0)
+      setFormData((prev) => ({ ...prev, guests: guestsCount }))
+       setFormError("")
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-       setFormError("");
+      setFormData((prev) => ({ ...prev, [name]: value }))
+       setFormError("")
     }
-  };
+  }
 
   useEffect(() => {
     if (!formData.time || !formData.slot) {
       setTimeError("");
       return;
     }
-    const [hours, minutes] = formData.time.split(":").map(Number);
+    const [hours, minutes] = formData.time.split(":").map(Number)
     if (formData.slot === "Morning") {
   if (hours < 9 ||
       (hours === 11 && minutes > 0) ||
       hours > 11) {
-    setTimeError("For Morning slot, time must be between 09:00 and 11:00");
+    setTimeError("For Morning slot, time must be between 09:00 and 11:00")
   } else {
-    setTimeError("");
+    setTimeError("")
   }
 } else if (formData.slot === "Afternoon") {
   if (hours < 16 ||
       (hours === 18 && minutes > 0) ||
       hours > 18
 ) {
-    setTimeError("For Afternoon slot, time must be between 16:00 and 18:00");
+    setTimeError("For Afternoon slot, time must be between 16:00 and 18:00")
   } else {
-    setTimeError("");
+    setTimeError("")
   }
 }
-  }, [formData.time, formData.slot]);
-  // Calculate additionalPeople total price
+  }, [formData.time, formData.slot])
+  
   const additionalTotal = additionalPeople.reduce((acc, p) => {
-    const pkg = packages.find((x) => x.name === p.package);
-    return acc + (pkg ? pkg.price : 0);
-  }, 0);
+    const pkg = packages.find((x) => x.name === p.package)
+    return acc + (pkg ? pkg.price : 0)
+  }, 0)
 
   
  useEffect(() => {
@@ -116,28 +117,65 @@ const [formData, setFormData] = useState({
   "Diamond hands only",
   "Showstopper",
   "Showstopper hands only",
-];
+]
   
-const isBridalPackage = bridalPackages.includes(formData.packageType);
-const hasAdditionalPeople = additionalPeople.length > 0 && additionalPeople.some(p => p.package);
-const discount = isBridalPackage && hasAdditionalPeople ? 10 : 0;
-  setSavedDiscount(discount > 0);
+const isBridalPackage = bridalPackages.includes(formData.packageType)
+const hasAdditionalPeople = additionalPeople.length > 0 && additionalPeople.some(p => p.package)
+const discount = isBridalPackage && hasAdditionalPeople ? 10 : 0
+  setSavedDiscount(discount > 0)
   setFormData(prev => ({ ...prev, guests: additionalPeople.length }))
 }, [formData.packageType, additionalPeople]);
 
-const basePrice = packages.find(p => p.name === formData.packageType)?.price || 0;
-const discount = savedDiscount ? 10 : 0;
-const totalPrice = basePrice + additionalTotal - discount;
+const basePrice = packages.find(p => p.name === formData.packageType)?.price || 0
+const discount = savedDiscount ? 10 : 0
+const totalPrice = basePrice + additionalTotal - discount
 
 
 
-const isPackageSelected = formData.packageType !== "";
-const depositForPackage = isPackageSelected ? 50 : 0;
-const depositForAdditionalPeople = additionalPeople.length * 20;
-const totalDeposit = depositForPackage + depositForAdditionalPeople;
+const isPackageSelected = formData.packageType !== ""
+const depositForPackage = isPackageSelected ? 50 : 0
+const depositForAdditionalPeople = additionalPeople.length * 20
+const totalDeposit = depositForPackage + depositForAdditionalPeople
 
 const validateForm = () => {
-    if (
+    
+  if (formData.name.trim().length < 2 || formData.name.trim().length > 50) {
+      setFormError("Name must be between 2 and 50 characters.")
+      return false
+    }
+
+    if (!/^[a-zA-Z\s\-']+$/.test(formData.name.trim())) {
+      setFormError("Name can only contain letters, spaces, hyphens, and apostrophes.")
+      return false
+    }
+
+    if (timeError) {
+      setFormError(timeError)
+      return false
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      setFormError("Please enter a valid email address.")
+      return false
+    }
+
+
+if (!/^\+?\d{7,15}$/.test(formData.phone.trim())) {
+  setFormError("Please enter a valid phone number.")
+  return false
+}
+
+if (!/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i.test(formData.postcode.trim())) {
+      setFormError("Please enter a valid UK postcode.")
+      return false;
+    }
+
+
+if (additionalPeople.some(p => !p.package)) {
+  setFormError("Please select a package for each additional person.")
+  return false
+}
+if (
       !formData.name ||
       !formData.email ||
       !formData.phone ||
@@ -149,50 +187,13 @@ const validateForm = () => {
       !formData.slot ||
       !formData.time
     ) {
-      setFormError("Please fill in all required fields.");
+      setFormError("Please fill in all required fields.")
       return false;
     }
-
-    if (formData.name.trim().length < 2 || formData.name.trim().length > 50) {
-      setFormError("Name must be between 2 and 50 characters.");
-      return false;
-    }
-
-    if (!/^[a-zA-Z\s\-']+$/.test(formData.name.trim())) {
-      setFormError("Name can only contain letters, spaces, hyphens, and apostrophes.");
-      return false;
-    }
-
-    if (timeError) {
-      setFormError(timeError);
-      return false;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      setFormError("Please enter a valid email address.");
-      return false;
-    }
-
-
-if (!/^\+?\d{7,15}$/.test(formData.phone.trim())) {
-  setFormError("Please enter a valid phone number.");
-  return false;
-}
-
-if (!/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i.test(formData.postcode.trim())) {
-      setFormError("Please enter a valid UK postcode.");
-      return false;
-    }
-
-
-if (additionalPeople.some(p => !p.package)) {
-  setFormError("Please select a package for each additional person.");
-  return false;
-}
-
-    setFormError("");
-    return true;
-  };
+    
+    setFormError("")
+    return true
+  }
 
 
   
@@ -209,11 +210,11 @@ try{
 
  
 const date = new Date(formData.date); 
-const [hours, minutes] = formData.time.split(":");
-date.setHours(+hours);  
-date.setMinutes(+minutes); 
-date.setSeconds(0);
-const startDateTime = date.toISOString();  
+const [hours, minutes] = formData.time.split(":")
+date.setHours(+hours)  
+date.setMinutes(+minutes)
+date.setSeconds(0)
+const startDateTime = date.toISOString()  
 
 console.log("Sending booking data:", {
   ...formData,
@@ -232,20 +233,20 @@ const response = await fetch(`${import.meta.env.VITE_API_URL}/book-event`, {
       });
 
 if (!response.ok) {
-  const errorData = await response.json();
-  console.error("Server error:", errorData.message);
+  const errorData = await response.json()
+  console.error("Server error:", errorData.message)
   setPaymentError(`Booking error: ${errorData.message}`)
   return
 }
 
-const data = await response.json();
+const data = await response.json()
 
 if (!stripe || !elements) {
   setPaymentError("Payment system is loading. Please try again in a moment.")
-  return;
+  return
 }
 
-console.log("Payment Intent Client Secret:", data.clientSecret);
+console.log("Payment Intent Client Secret:", data.clientSecret)
 
 const cardElement = elements.getElement(CardElement)
 const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
@@ -264,21 +265,21 @@ if (paymentResult.error) {
 }
 
 if (paymentResult.paymentIntent.status !== "succeeded") {
-  setPaymentError("Payment was not successful. Please try again.");
-  return;
+  setPaymentError("Payment was not successful. Please try again.")
+  return
 }
 
-console.log("Sending email via EmailJS...");
+console.log("Sending email via EmailJS...")
 
-const additionalGuestsCount = additionalPeople?.length || 0;
-let additionalGuestsInfo = "No additional guests";
+const additionalGuestsCount = additionalPeople?.length || 0
+let additionalGuestsInfo = "No additional guests"
 if (additionalGuestsCount && additionalPeople.length > 0) {
   additionalGuestsInfo = additionalPeople
 .map((guest, index) => `Person ${index + 1} Package: ${guest.package}`)
-    .join("\n");
+    .join("\n")
 }
 
-let callBackInfo = "";
+let callBackInfo = ""
 if (formData.callRequested) {
   callBackInfo = `
 Request a Call Back: YES
@@ -315,7 +316,7 @@ const templateParams = {
         EMAILJS_PUBLIC_KEY
       );
 
-      console.log("Email sent successfully:", emailResult);
+      console.log("Email sent successfully:", emailResult)
 
 
   const customerEmailResult = await emailjs.send(
@@ -325,7 +326,7 @@ const templateParams = {
   EMAILJS_PUBLIC_KEY
 );
 
-console.log("Customer thank you email sent successfully:", customerEmailResult);
+console.log("Customer thank you email sent successfully:", customerEmailResult)
    
      
       setFormData({
@@ -345,22 +346,22 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         SavedDiscount: false
      });
      setSavedDiscount(false)
-      setAdditionalPeople([]); // 🔥 ADD THIS: Also reset additional people
-      navigate("/success");
+      setAdditionalPeople([])
+      navigate("/success")
 
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error:", error)
       
-      // 🔥 ADD BETTER ERROR HANDLING
+
       if (error.name === 'EmailJSResponseError') {
-        setPaymentError("Email sending failed. Your booking is confirmed but we couldn't send the confirmation email. Please contact us directly.");
+        setPaymentError("Email sending failed. Your booking is confirmed but we couldn't send the confirmation email. Please contact us directly.")
       } else {
         setPaymentError("Something went wrong. Please try again.")
       }
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
 
   return (
@@ -373,7 +374,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
 
       
       <h2 className="text-3xl font-bold text-white text-center mb-6 drop-shadow-md">Book Your Appointment</h2>
-      {/* User Details */}
       <input
         type="text"
         name="name"
@@ -473,9 +473,8 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
           </select>
         </div>
       ))}
-      {/* Guests Number Input (only for Guest/party booking) */}
-      
     
+      
       <label className="mt-4 block">Select Date:</label>
       <DatePicker
         selected={formData.date}
@@ -485,7 +484,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
         required
       />
-      {/* Slot */}
+     
       <label className="mt-4 block">Select Slot:</label>
       <select
         name="slot"
@@ -509,7 +508,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
       {timeError && <p className="text-red-500">{timeError}</p>}
-      {/* Call Request */}
+    
       <label className="mt-4 block">
         <input
           type="checkbox"
@@ -529,7 +528,18 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
           className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
         />
       )}
-{isPackageSelected && (
+
+<div className="mb-4 border pb-4 pl-2">
+  <label className="block mb-1 text-cyan-500 font-bold">Card Details</label>
+  <CardElement options={{ hidePostalCode: true }}/>
+</div>
+     
+      <div className="mt-4 font-bold text-lg">
+        Total Price: £{totalPrice.toFixed(2)}
+        {savedDiscount && <span className="text-green-600 ml-2">(£10 discount applied)</span>}
+      </div>
+      <div>
+      {isPackageSelected && (
   <p className="mt-2 font-semibold text-pink-600">
     Deposit required: £{totalDeposit}
     {(depositForPackage > 0 || additionalPeople.length > 0) && (
@@ -539,17 +549,8 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
     )}
   </p>
 )}
-
-<div className="mb-4 border pb-4 pl-2">
-  <label className="block mb-1 text-cyan-500 font-bold">Card Details</label>
-  <CardElement options={{ hidePostalCode: true }}/>
 </div>
-      {/* Price Display */}
-      <div className="mt-4 font-bold text-lg">
-        Total Price: £{totalPrice.toFixed(2)}
-        {savedDiscount && <span className="text-green-600 ml-2">(£10 discount applied)</span>}
-      </div>
-      {/* Form Error */}
+     
       {formError && <p className="text-red-600">{formError}</p>}
       {paymentError && <p className="text-red-600 font-semibold">{paymentError}</p>}
       <button
@@ -566,6 +567,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult);
 
     <Footer />
   </div>
-  );
+  )
 }
-export default BookingForm;
+export default BookingForm

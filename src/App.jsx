@@ -7,7 +7,7 @@ import { useLocation } from "react-router-dom";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 function App() {
-   let location = useLocation();
+   let location = useLocation()
    
   return (
     <Elements stripe={stripePromise}>
@@ -31,4 +31,4 @@ function App() {
   );
 }
 
-export default App;
+export default App
