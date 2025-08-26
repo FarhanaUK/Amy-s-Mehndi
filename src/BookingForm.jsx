@@ -33,7 +33,7 @@ const [formData, setFormData] = useState({
     time: "",
     callRequested: false,
     callTimes: "",
-    guests: 0,
+
   })
 
   const [timeError, setTimeError] = useState("")
@@ -54,7 +54,7 @@ const [formData, setFormData] = useState({
     { name: "Diamond hands only", price: 250 },
     { name: "Showstopper", price: 350 },
     { name: "Showstopper hands only", price: 300 },
-    { name: "Guest/party booking", price: 60 },
+  
   ]
 
   const handleChange = (e) => {
@@ -62,11 +62,7 @@ const [formData, setFormData] = useState({
     if (type === "checkbox" && name === "callRequested") {
       setFormData((prev) => ({ ...prev, callRequested: checked }))
        setFormError("")
-    } else if (name === "guests") {
-      const guestsCount = Math.max(0, parseInt(value) || 0)
-      setFormData((prev) => ({ ...prev, guests: guestsCount }))
-       setFormError("")
-    } else {
+    }else {
       setFormData((prev) => ({ ...prev, [name]: value }))
        setFormError("")
     }
@@ -97,45 +93,19 @@ const [formData, setFormData] = useState({
   }
 }
   }, [formData.time, formData.slot])
-  
-  const additionalTotal = additionalPeople.reduce((acc, p) => {
-    const pkg = packages.find((x) => x.name === p.package)
-    return acc + (pkg ? pkg.price : 0)
-  }, 0)
-
-  
- useEffect(() => {
-
-  const bridalPackages = [
-  "Classic",
-  "Classic hands only",
-  "Elegance",
-  "Elegance hands only",
-  "Picturesque",
-  "Picturesque hands only",
-  "Diamond",
-  "Diamond hands only",
-  "Showstopper",
-  "Showstopper hands only",
-]
-  
-const isBridalPackage = bridalPackages.includes(formData.packageType)
-const hasAdditionalPeople = additionalPeople.length > 0 && additionalPeople.some(p => p.package)
-const discount = isBridalPackage && hasAdditionalPeople ? 10 : 0
-  setSavedDiscount(discount > 0)
-  setFormData(prev => ({ ...prev, guests: additionalPeople.length }))
-}, [formData.packageType, additionalPeople]);
 
 const basePrice = packages.find(p => p.name === formData.packageType)?.price || 0
-const discount = savedDiscount ? 10 : 0
-const totalPrice = basePrice + additionalTotal - discount
-
-
+const guestBookingPrice = formData.isGuestBooking && formData.guestDuration 
+  ? formData.guestDuration * 60 
+  : 0
+const additionalTotal = additionalPeople.length * 0
+const totalPrice = basePrice + guestBookingPrice + additionalTotal
 
 const isPackageSelected = formData.packageType !== ""
+const isGuestBookingSelected = formData.isGuestBooking && formData.guestDuration
 const depositForPackage = isPackageSelected ? 50 : 0
-const depositForAdditionalPeople = additionalPeople.length * 20
-const totalDeposit = depositForPackage + depositForAdditionalPeople
+const depositForGuestBooking = isGuestBookingSelected ? 20 : 0
+const totalDeposit = depositForPackage + depositForGuestBooking
 
 const validateForm = () => {
     
@@ -171,10 +141,6 @@ if (!/^[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}$/i.test(formData.postcode.trim())) {
     }
 
 
-if (additionalPeople.some(p => !p.package)) {
-  setFormError("Please select a package for each additional person.")
-  return false
-}
 if (
       !formData.name ||
       !formData.email ||
@@ -229,6 +195,7 @@ const response = await fetch(`${import.meta.env.VITE_API_URL}/book-event`, {
           ...formData,
           startDateTime,
           depositAmount: totalDeposit,
+          additionalPeople: additionalPeople.length,
         }),
       });
 
@@ -270,14 +237,15 @@ if (paymentResult.paymentIntent.status !== "succeeded") {
 }
 
 console.log("Sending email via EmailJS...")
+const additionalGuestsCount = additionalPeople.length;
 
-const additionalGuestsCount = additionalPeople?.length || 0
-let additionalGuestsInfo = "No additional guests"
-if (additionalGuestsCount && additionalPeople.length > 0) {
-  additionalGuestsInfo = additionalPeople
-.map((guest, index) => `Person ${index + 1} Package: ${guest.package}`)
-    .join("\n")
+let guestBookingInfo = "";
+if (isGuestBookingSelected) {
+  guestBookingInfo = `${formData.guestDuration} hours`;
+} else {
+  guestBookingInfo = "No";
 }
+
 
 let callBackInfo = ""
 if (formData.callRequested) {
@@ -287,7 +255,7 @@ Preferred Call Times: ${formData.callTimes}
 `;
 } else {
   callBackInfo = "Request a Call Back: NO\n";
-  console.log(additionalGuestsInfo, callBackInfo)
+  
 }
 
 const templateParams = {
@@ -298,8 +266,8 @@ const templateParams = {
         city: formData.city,
         postcode: formData.postcode,
         package_type: formData.packageType,
+        guest_booking_info: guestBookingInfo,
         additional_people_count: additionalGuestsCount,
-        additional_people_info: additionalGuestsInfo,
         call_back_info: callBackInfo,
         total_price: totalPrice.toFixed(2),
         total_deposit: totalDeposit,
@@ -342,7 +310,6 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
         time: "",
         callRequested: false,
         callTimes: "",
-        guests: 0,
         SavedDiscount: false
      });
      setSavedDiscount(false)
@@ -437,42 +404,60 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
           </option>
         ))}
       </select>
-      {/* Additional People */}
+  
+  <div className="mt-4">
+  <label className="flex items-center gap-2">
+    <input
+      type="checkbox"
+      checked={formData.isGuestBooking || false}
+      onChange={(e) =>
+        setFormData({ ...formData, isGuestBooking: e.target.checked })
+      }
+    />
+    Guest/Party Booking (£60/hour)
+  </label>
+  {formData.isGuestBooking && (
+    <p className="text-sm text-gray-500">
+      * Minimum 10 people required for this booking
+    </p>
+  )}
+</div>
+{formData.isGuestBooking && (
+  <div className="mt-2">
+    <label>Select Duration:</label>
+    <select
+      value={formData.guestDuration || ""}
+      onChange={(e) =>
+        setFormData({ ...formData, guestDuration: parseInt(e.target.value) })
+      }
+      className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+    >
+      <option value="">-- Select --</option>
+      <option value={2}>2 Hours (£120)</option>
+      <option value={3}>3 Hours (£180)</option>
+      <option value={4}>4 Hours (£240)</option>
+    </select>
+  </div>
+)}
+
+
+
+
       <h3 className="font-semibold mt-4">Additional People</h3>
-      <label>Number of Additional People (0-10):</label>
+      <label>Number of Additional People (0-3):</label>
       <input
         type="number"
         min={0}
-        max={10}
+        max={3}
         value={additionalPeople.length.toString()}
         onChange={(e) => {
-          const count = Math.min(10, Math.max(0, parseInt(e.target.value) || 0));
-          const updated = Array.from({ length: count }, (_, i) => additionalPeople[i] || { package: "" });
-          setAdditionalPeople(updated);
+          const count = Math.min(3, Math.max(0, parseInt(e.target.value) || 0));
+        const updated = Array.from({ length: count }, () => ({}));
+    setAdditionalPeople(updated);;
         }}
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
-      {additionalPeople.map((person, idx) => (
-        <div key={idx} className="mt-2">
-          <label>Person {idx + 1} Package:</label>
-          <select
-            value={person.package}
-            onChange={(e) => {
-              const updated = [...additionalPeople];
-              updated[idx].package = e.target.value;
-              setAdditionalPeople(updated);
-            }}
-            className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
-          >
-            <option value="">-- Select Package --</option>
-            {packages.map((pkg) => (
-              <option key={pkg.name} value={pkg.name}>
-                {pkg.name} (£{pkg.price})
-              </option>
-            ))}
-          </select>
-        </div>
-      ))}
+   
     
       
       <label className="mt-4 block">Select Date:</label>
@@ -534,21 +519,22 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
   <CardElement options={{ hidePostalCode: true }}/>
 </div>
      
-      <div className="mt-4 font-bold text-lg">
-        Total Price: £{totalPrice.toFixed(2)}
-        {savedDiscount && <span className="text-green-600 ml-2">(£10 discount applied)</span>}
-      </div>
-      <div>
-      {isPackageSelected && (
-  <p className="mt-2 font-semibold text-pink-600">
-    Deposit required: £{totalDeposit}
-    {(depositForPackage > 0 || additionalPeople.length > 0) && (
+<div className="mt-4 font-bold text-lg">
+  Total Price: £{totalPrice.toFixed(2)}
+  {savedDiscount && <span className="text-green-600 ml-2">(£10 discount applied)</span>}
+</div>
+<div>
+  {(isPackageSelected || isGuestBookingSelected) && (
+    <p className="mt-2 font-semibold text-pink-600">
+      Deposit required: £{totalDeposit}
       <span className="block text-sm font-normal text-black mt-1">
-        (£50 for Bridal Package + £20 per additional person)
+        {isPackageSelected && "(£50 for Bridal Package"}
+        {isPackageSelected && isGuestBookingSelected && " + "}
+        {isGuestBookingSelected && "£20 for Guest/Party Booking"}
+        {(isPackageSelected || isGuestBookingSelected) && ")"}
       </span>
-    )}
-  </p>
-)}
+    </p>
+  )}
 </div>
      
       {formError && <p className="text-red-600">{formError}</p>}

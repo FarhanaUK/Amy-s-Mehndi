@@ -126,11 +126,12 @@ if (event.type === "payment_intent.succeeded") {
     address,
     city,
     postcode,
-    guests,
-    startDateTime,
-    endDateTime,
-  } = paymentIntent.metadata
-
+ additionalPeople,
+  startDateTime,
+  endDateTime,
+  isGuestBooking,
+  guestDuration,
+} = paymentIntent.metadata
    try {
       
       console.log("Creating confirmed booking event...")
@@ -141,8 +142,10 @@ Customer: ${customerName}
 Email: ${customerEmail}
 Phone: ${phone}
 Address: ${address}, ${city}, ${postcode}
-Guests: ${guests || 0}
 Package: ${packageType}
+${isGuestBooking === 'true' ? `Guest/Party Booking: ${guestDuration} hours` : ''}
+Additional People: ${additionalPeople || 0}
+
 
 Payment ID: ${paymentIntent.id}
 Booking confirmed at: ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}`
@@ -213,9 +216,11 @@ app.post("/book-event", async (req, res) => {
       address,
       city,
       postcode,
-      guests,
+      additionalPeople,
       startDateTime,
       depositAmount,
+      isGuestBooking,
+  guestDuration,
     } = req.body
        console.log("✅ Data extracted")
     if (
@@ -322,9 +327,11 @@ console.log("Creating payment intent now")
         address,
         city,
         postcode,
-        guests: guests || 0,
+        additionalPeople: additionalPeople || 0,
         startDateTime,
         endDateTime,
+        isGuestBooking: isGuestBooking || false,
+    guestDuration: guestDuration || 0,
       },
     })
  console.log("Payment intent created:", paymentIntent.id)
