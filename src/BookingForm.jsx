@@ -475,6 +475,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
         name="slot"
         value={formData.slot}
         onChange={handleChange}
+        autoComplete="off"
         required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       >
@@ -489,6 +490,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
         name="time"
         value={formData.time}
         onChange={handleChange}
+        autoComplete="off"
         required
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
