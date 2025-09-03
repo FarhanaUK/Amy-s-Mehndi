@@ -11,11 +11,11 @@ function App() {
    
   return (
     <Elements stripe={stripePromise}>
-    <div className="bg-yellow-50">
+    <div className="bg-black">
      
       {
         location.pathname === '/' && (
-          <h1 className="font-parisienne text-shadow-lg text-6xl text-pink-500 drop-shadow-lg flex justify-center py-6">Amy's Mehndi</h1>
+          <h1 className="font-parisienne text-shadow-lg text-pink-500 drop-shadow-lg text-5xl sm:text-6xl md:text-7xl text-center py-6">Amy's Mehndi</h1>
         )
       }
   

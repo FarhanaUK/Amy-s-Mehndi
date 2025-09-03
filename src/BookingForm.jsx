@@ -17,7 +17,7 @@ const navigate = useNavigate();
 const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID
 const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_OWNER
 const EMAILJS_PUBLIC_KEY =  import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-const EMAILJS_EMAILJS_TEMPLATE_ID_CUSTOMER = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_CUSTOMER
+const EMAILJS_TEMPLATE_ID_CUSTOMER = import.meta.env.VITE_EMAILJS_TEMPLATE_ID_CUSTOMER
 
 
 const [formData, setFormData] = useState({
@@ -42,6 +42,7 @@ const [formData, setFormData] = useState({
   const [savedDiscount, setSavedDiscount] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState("")
+  
 
   const packages = [
     { name: "Classic", price: 175 },
@@ -171,7 +172,7 @@ const handleSubmit = async (e) => {
   setIsSubmitting(true)
   setPaymentError("")
 
-try{
+try {
   console.log("Form data to send:", formData)
 
  
@@ -276,6 +277,16 @@ const templateParams = {
         payment_id: paymentResult.paymentIntent.id,
       };
 
+ console.log("Environment variables check:");
+    console.log("EMAILJS_SERVICE_ID:", EMAILJS_SERVICE_ID);
+    console.log("EMAILJS_TEMPLATE_ID:", EMAILJS_TEMPLATE_ID);
+    console.log("EMAILJS_TEMPLATE_ID_CUSTOMER:", EMAILJS_TEMPLATE_ID_CUSTOMER);
+    console.log("EMAILJS_PUBLIC_KEY:", EMAILJS_PUBLIC_KEY ? "SET" : "NOT SET");
+if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_TEMPLATE_ID_CUSTOMER || !EMAILJS_PUBLIC_KEY) {
+  console.error("Missing required EmailJS environment variables");
+  throw new Error("Email configuration is incomplete");
+}
+  console.log("sending owner email via EmailJS...")
 
  const emailResult = await emailjs.send(
         EMAILJS_SERVICE_ID,
@@ -287,9 +298,10 @@ const templateParams = {
       console.log("Email sent successfully:", emailResult)
 
 
+       console.log("Sending customer confirmation email...")
   const customerEmailResult = await emailjs.send(
   EMAILJS_SERVICE_ID,
-  EMAILJS_EMAILJS_TEMPLATE_ID_CUSTOMER,
+  EMAILJS_TEMPLATE_ID_CUSTOMER,
   templateParams,
   EMAILJS_PUBLIC_KEY
 );
@@ -518,7 +530,11 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
 
 <div className="mb-4 border pb-4 pl-2">
   <label className="block mb-1 text-cyan-500 font-bold">Card Details</label>
-  <CardElement options={{ hidePostalCode: true }}/>
+  <CardElement options={{ hidePostalCode: true, style: {
+      base: {
+        fontSize: '16px',
+      }
+    } }}/>
 </div>
      
 <div className="mt-4 font-bold text-lg">
