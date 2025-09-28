@@ -1,17 +1,15 @@
-
 import { useState, useEffect } from "react"
 import DatePicker from "react-datepicker"
 import { useNavigate } from "react-router-dom"
 import "react-datepicker/dist/react-datepicker.css";
-import { useStripe, useElements, CardElement } from "@stripe/react-stripe-js"
+
 import emailjs from '@emailjs/browser'
 import Footer from "./Footer";
 
 
-function BookingForm() {
+function SimpleBooking() {
 
-const stripe = useStripe();
-const elements = useElements();
+
 const navigate = useNavigate();
 
 const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID
@@ -41,7 +39,7 @@ const [formData, setFormData] = useState({
   const [additionalPeople, setAdditionalPeople] = useState([])
   const [savedDiscount, setSavedDiscount] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [paymentError, setPaymentError] = useState("")
+  const [submitError, setSubmitError] = useState("") 
   const [showTerms, setShowTerms] = useState(false)
 
   const packages = [
@@ -179,178 +177,115 @@ const handleSubmit = async (e) => {
   if (!validateForm() || isSubmitting) return
   
   setIsSubmitting(true)
-  setPaymentError("")
+  setSubmitError("")
 
 try {
   console.log("Form data to send:", formData)
 
- 
-const date = new Date(formData.date); 
-const [hours, minutes] = formData.time.split(":")
-date.setHours(+hours)  
-date.setMinutes(+minutes)
-date.setSeconds(0)
-const startDateTime = date.toISOString()  
 
-console.log("Sending booking data:", {
-  ...formData,
-  startDateTime,
-  depositAmount: totalDeposit,
-});
+  console.log("Sending email via EmailJS...")
+  const additionalGuestsCount = additionalPeople.length;
 
-const response = await fetch(`${import.meta.env.VITE_API_URL}/book-event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          startDateTime,
-          depositAmount: totalDeposit,
-          additionalPeople: additionalPeople.length,
-        }),
-      });
+  let guestBookingInfo = "";
+  if (isGuestBookingSelected) {
+    guestBookingInfo = `${formData.guestDuration} hours`;
+  } else {
+    guestBookingInfo = "No";
+  }
 
-if (!response.ok) {
-  const errorData = await response.json()
-  console.error("Server error:", errorData.message)
-  setPaymentError(`Booking error: ${errorData.message}`)
-  return
-}
-
-const data = await response.json()
-
-if (!stripe || !elements) {
-  setPaymentError("Payment system is loading. Please try again in a moment.")
-  return
-}
-
-console.log("Payment Intent Client Secret:", data.clientSecret)
-
-const cardElement = elements.getElement(CardElement)
-const paymentResult = await stripe.confirmCardPayment(data.clientSecret, {
-  payment_method: {
-    card: cardElement,
-    billing_details: {
-      name: formData.name,
-      email: formData.email,
-    },
-  },
-});
-
-if (paymentResult.error) {
-  setPaymentError(`Payment failed: ${paymentResult.error.message}`)
-  return
-}
-
-if (paymentResult.paymentIntent.status !== "succeeded") {
-  setPaymentError("Payment was not successful. Please try again.")
-  return
-}
-
-console.log("Sending email via EmailJS...")
-const additionalGuestsCount = additionalPeople.length;
-
-let guestBookingInfo = "";
-if (isGuestBookingSelected) {
-  guestBookingInfo = `${formData.guestDuration} hours`;
-} else {
-  guestBookingInfo = "No";
-}
-
-
-let callBackInfo = ""
-if (formData.callRequested) {
-  callBackInfo = `
+  let callBackInfo = ""
+  if (formData.callRequested) {
+    callBackInfo = `
 Request a Call Back: YES
 Preferred Call Times: ${formData.callTimes}
 `;
-} else {
-  callBackInfo = "Request a Call Back: NO\n";
+  } else {
+    callBackInfo = "Request a Call Back: NO\n";
+  }
+
+  const templateParams = {
+    customer_name: formData.name,
+    customer_email: formData.email,
+    phone: formData.phone,
+    address: formData.address,
+    city: formData.city,
+    postcode: formData.postcode,
+    package_type: formData.packageType,
+    guest_booking_info: guestBookingInfo,
+    additional_people_count: additionalGuestsCount,
+    call_back_info: callBackInfo,
+    total_price: totalPrice.toFixed(2),
+    total_deposit: totalDeposit,
+    booking_date: formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '',
+    booking_time: formData.time,
+   
+    booking_status: "INQUIRY - Payment to be collected on appointment day"
+  };
+
+  console.log("Environment variables check:");
+  console.log("EMAILJS_SERVICE_ID:", EMAILJS_SERVICE_ID);
+  console.log("EMAILJS_TEMPLATE_ID:", EMAILJS_TEMPLATE_ID);
+  console.log("EMAILJS_TEMPLATE_ID_CUSTOMER:", EMAILJS_TEMPLATE_ID_CUSTOMER);
+  console.log("EMAILJS_PUBLIC_KEY:", EMAILJS_PUBLIC_KEY ? "SET" : "NOT SET");
+
+  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_TEMPLATE_ID_CUSTOMER || !EMAILJS_PUBLIC_KEY) {
+    console.error("Missing required EmailJS environment variables");
+    throw new Error("Email configuration is incomplete");
+  }
   
-}
-
-const templateParams = {
-        customer_name: formData.name,
-        customer_email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        postcode: formData.postcode,
-        package_type: formData.packageType,
-        guest_booking_info: guestBookingInfo,
-        additional_people_count: additionalGuestsCount,
-        call_back_info: callBackInfo,
-        total_price: totalPrice.toFixed(2),
-        total_deposit: totalDeposit,
-        booking_date: formData.date ? new Date(formData.date).toLocaleDateString('en-GB') : '',
-        booking_time: formData.time,
-        payment_id: paymentResult.paymentIntent.id,
-      };
-
- console.log("Environment variables check:");
-    console.log("EMAILJS_SERVICE_ID:", EMAILJS_SERVICE_ID);
-    console.log("EMAILJS_TEMPLATE_ID:", EMAILJS_TEMPLATE_ID);
-    console.log("EMAILJS_TEMPLATE_ID_CUSTOMER:", EMAILJS_TEMPLATE_ID_CUSTOMER);
-    console.log("EMAILJS_PUBLIC_KEY:", EMAILJS_PUBLIC_KEY ? "SET" : "NOT SET");
-if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_TEMPLATE_ID_CUSTOMER || !EMAILJS_PUBLIC_KEY) {
-  console.error("Missing required EmailJS environment variables");
-  throw new Error("Email configuration is incomplete");
-}
   console.log("sending owner email via EmailJS...")
 
- const emailResult = await emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID, 
-        templateParams,
-        EMAILJS_PUBLIC_KEY
-      );
+  const emailResult = await emailjs.send(
+    EMAILJS_SERVICE_ID,
+    EMAILJS_TEMPLATE_ID, 
+    templateParams,
+    EMAILJS_PUBLIC_KEY
+  );
 
-      console.log("Email sent successfully:", emailResult)
+  console.log("Email sent successfully:", emailResult)
 
-
-       console.log("Sending customer confirmation email...")
+  console.log("Sending customer confirmation email...")
   const customerEmailResult = await emailjs.send(
-  EMAILJS_SERVICE_ID,
-  EMAILJS_TEMPLATE_ID_CUSTOMER,
-  templateParams,
-  EMAILJS_PUBLIC_KEY
-);
+    EMAILJS_SERVICE_ID,
+    EMAILJS_TEMPLATE_ID_CUSTOMER,
+    templateParams,
+    EMAILJS_PUBLIC_KEY
+  );
 
-console.log("Customer thank you email sent successfully:", customerEmailResult)
-   
+  console.log("Customer thank you email sent successfully:", customerEmailResult)
      
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        address: "",
-        city: "",
-        postcode: "",
-        packageType: "",
-        date: "",
-        slot: "",
-        time: "",
-        callRequested: false,
-        callTimes: "",
-        SavedDiscount: false,
-        termsAccepted: false,
-     });
-     setSavedDiscount(false)
-      setAdditionalPeople([])
-      navigate("/success")
+  setFormData({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    postcode: "",
+    packageType: "",
+    date: "",
+    slot: "",
+    time: "",
+    callRequested: false,
+    callTimes: "",
+    SavedDiscount: false,
+    termsAccepted: false,
+  });
+  setSavedDiscount(false)
+  setAdditionalPeople([])
+  navigate("/success")
 
-    } catch (error) {
-      console.error("Error:", error)
-      
-
-      if (error.name === 'EmailJSResponseError') {
-        setPaymentError("Email sending failed. Your booking is confirmed but we couldn't send the confirmation email. Please contact us directly.")
-      } else {
-        setPaymentError("Something went wrong. Please try again.")
-      }
-    } finally {
-      setIsSubmitting(false)
-    }
+} catch (error) {
+  console.error("Error:", error)
+  
+  if (error.name === 'EmailJSResponseError') {
+    setSubmitError("Email sending failed. Please try again or contact us directly.")
+  } else {
+    setSubmitError("Something went wrong. Please try again.")
   }
+} finally {
+  setIsSubmitting(false)
+}
+}
 
 
   return (
@@ -411,7 +346,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
         onChange={handleChange}
         className="w-full px-5 py-3 border border-pink-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
       />
-      {/* Package Selector */}
+ 
       <h3 className="font-semibold mt-4">Bridal Package</h3>
       <select
         name="packageType"
@@ -505,7 +440,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
         <option value="Morning">Morning</option>
         <option value="Afternoon">Afternoon</option>
       </select>
-      {/* Time input */}
+     
       <label className="mt-4 block">Select Time:</label>
       <input
         type="time"
@@ -538,29 +473,24 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
         />
       )}
 
-<div className="mb-4 border pb-4 pl-2">
-  <label className="block mb-1 text-cyan-500 font-bold">Card Details</label>
-  <CardElement options={{ hidePostalCode: true, style: {
-      base: {
-        fontSize: '16px',
-      }
-    } }}/>
-</div>
      
 <div className="mt-4 font-bold text-lg">
   Total Price: £{totalPrice.toFixed(2)}
   {savedDiscount && <span className="text-green-600 ml-2">(£10 discount applied)</span>}
 </div>
+
+
 <div>
   {(isPackageSelected || isGuestBookingSelected) && (
     <p className="mt-2 font-semibold text-pink-600">
-      Deposit required: £{totalDeposit}
+      Deposit: £{totalDeposit}
       <span className="block text-sm font-normal text-black mt-1">
         {isPackageSelected && "(£50 for Bridal Package"}
         {isPackageSelected && isGuestBookingSelected && " + "}
         {isGuestBookingSelected && "£20 for Guest/Party Booking"}
         {(isPackageSelected || isGuestBookingSelected) && ")"}
       </span>
+     
     </p>
   )}
 
@@ -594,35 +524,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
             <h4 className="font-semibold mb-3 text-pink-700">Terms and Conditions</h4>
             
             <div className="space-y-3">
-              <div>
-                <h5 className="font-medium mb-1">Booking Policy</h5>
-                <p>All bookings require a deposit payment to secure your appointment. The deposit is non-refundable and will be deducted from your final payment.</p>
-              </div>
-              
-              <div>
-                <h5 className="font-medium mb-1">Cancellation Policy</h5>
-                <p>Cancellations must be made at least 48 hours before your appointment. Cancellations made less than 48 hours in advance will forfeit the deposit.</p>
-              </div>
-              
-              <div>
-                <h5 className="font-medium mb-1">Payment Terms</h5>
-                <p>Full payment is due on the day of service. We accept cash, card payments, and bank transfers.</p>
-              </div>
-              
-              <div>
-                <h5 className="font-medium mb-1">Service Agreement</h5>
-                <p>By booking our services, you agree to arrive on time and prepared for your appointment. Late arrivals may result in shortened service time.</p>
-              </div>
-              
-              <div>
-                <h5 className="font-medium mb-1">Privacy Policy</h5>
-                <p>We collect and store your personal information solely for the purpose of providing our services. Your data will not be shared with third parties without your consent.</p>
-              </div>
-              
-              <div>
-                <h5 className="font-medium mb-1">Liability</h5>
-                <p>While we take every precaution to ensure your safety and satisfaction, we are not liable for any allergic reactions or skin sensitivities. Please inform us of any allergies beforehand.</p>
-              </div>
+             <p>n/a</p>
             </div>
             
             <button
@@ -638,7 +540,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
 
      
       {formError && <p className="text-red-600">{formError}</p>}
-      {paymentError && <p className="text-red-600 font-semibold">{paymentError}</p>}
+      {submitError && <p className="text-red-600 font-semibold">{submitError}</p>}
       <button
         disabled={isSubmitting || !formData.termsAccepted}
   className={`w-full text-white py-3 rounded-md ${
@@ -647,7 +549,7 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
       : 'bg-yellow-400 hover:bg-yellow-500'
   }`}
 >
-  {isSubmitting ? 'Processing...' : 'Book Now'}
+  {isSubmitting ? 'Processing...' : 'Submit Booking Inquiry'}
       </button>
     </form>
 
@@ -655,4 +557,4 @@ console.log("Customer thank you email sent successfully:", customerEmailResult)
   </div>
   )
 }
-export default BookingForm
+export default SimpleBooking

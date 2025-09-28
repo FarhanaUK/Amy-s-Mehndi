@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import BookingForm from "./BookingForm";
+import SimpleBooking from "./SimpleBooking";
 import Success from "./Success";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
@@ -21,7 +21,7 @@ function App() {
   
     
       <Routes>
-        <Route path="/" element={<BookingForm />} />
+        <Route path="/" element={<SimpleBooking />} />
         <Route path="/success" element={<Success />} />
       </Routes>
     
